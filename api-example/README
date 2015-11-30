@@ -1,0 +1,9 @@
+To run the example code, first 'make lib' in the parent directory then:
+
+make c
+./c-example example.wcnf
+
+or
+
+make cpp
+./cpp-example example.wcnf 

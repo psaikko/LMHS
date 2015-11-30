@@ -1,0 +1,12 @@
+bin
+obj
+lib
+lingeling/code/lingeling
+minisat/lib
+minisat/config.mk
+minisat/bin
+minisat/build
+config.mk
+api-example/c-example
+api-example/cpp-example
+*.o

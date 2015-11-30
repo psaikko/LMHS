@@ -1,0 +1,3 @@
+*.d
+coprocessor
+src/info.cc
