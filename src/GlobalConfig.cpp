@@ -215,7 +215,7 @@ void GlobalConfig::parseArgs(int argc, const char** argv, ostream & out) {
   isLCNF = inFileAssumptions || (use_coprocessor && pre_lcnf);
 
   streamPrecision = args.getIntOption("-stream-precision", 15);
-  floatWeights = args.getBoolOption("-float-weights", true);
+  floatWeights = args.getBoolOption("-float-weights", false);
 
   // zero = no limit
   minimizePropLimit = args.getIntOption("-min-prop-lim", 0);
