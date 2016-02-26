@@ -73,10 +73,11 @@ int main(int argc, const char* argv[]) {
         log(0, "c CPU time: %.2f seconds\n", SECONDS(clock() - begin));
         return 0;
       } else if (ci_status == CI_SAT) {
-        // bypass issue with coprocessor hack (TODO: fixme)
-        cfg.use_coprocessor = false;
-        file.close();
-        file.open(argv[1]);
+        stringstream model;
+        model << setprecision(cfg.streamPrecision);
+        ci.CP_completeModel(pre, model);
+        vm.unmap(model, cout);
+        return 0;
       } else if (ci_status == CI_ERR) {
         log(0, "s UNKNOWN\n");
         return 0;

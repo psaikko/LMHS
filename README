@@ -5,7 +5,7 @@ run configure.py before make to set paths
 make accepts parameters:
 	SAT={minisat|lingeling}  choose SAT solver module
 	MIP={cplex|scip}         choose MIP solver module
-	DEBUG={0|1}              compile with -DDEBUG, reduce optimization, include gdb debug info
+	LMHS_DEBUG={0|1}         compile with -DDEBUG, reduce optimization, include gdb debug info
 	STATIC={0|1}             produce binary with statically linked libgcc, libstdc++
 
 solver use:
