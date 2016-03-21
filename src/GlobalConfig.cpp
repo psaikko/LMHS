@@ -74,7 +74,7 @@ void GlobalConfig::printHelp(ostream & out) {
     "Find and relax an initial set of disjoint cores as a\n"
     "presolving step before MaxHS"});  
 
-  pds.push_back({"--preprocess", "false", "bool", "", 
+  pds.push_back({"--preprocess", "true", "bool", "", 
     "Enable SAT-based preprocessing"});
   pds.push_back({"--pre-lcnf", "true", "bool", "", 
     "Treat preprocessed instance as LCNF."
