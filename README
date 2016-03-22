@@ -7,6 +7,7 @@ make accepts parameters:
 	MIP={cplex|scip}         choose MIP solver module
 	LMHS_DEBUG={0|1}         compile with -DDEBUG, reduce optimization, include gdb debug info
 	STATIC={0|1}             produce binary with statically linked libgcc, libstdc++
+	CONFIG={2015I|2015C}     use MaxSAT Evaluation 2015 config
 
 solver use:
 ./bin/LMHS <wcnf filepath> <params>

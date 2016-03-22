@@ -222,4 +222,25 @@ void GlobalConfig::parseArgs(int argc, const char** argv, ostream & out) {
   minimizeConfLimit = args.getIntOption("-min-conf-lim", 0);
 
   initialized = true;
+
+
+#ifdef E2015I
+  // enable preprocessing
+  use_coprocessor = true;
+  isLCNF  = true;
+  floatWeights = false;
+  // force nonopt to "disjoint"
+  nonoptPrimary = NonoptHS::disjoint;
+  nonoptSecondary = nullptr;
+#endif
+
+#ifdef E2015C
+  // enable preprocessing
+  use_coprocessor = true;
+  isLCNF  = true;
+  floatWeights = false;
+  // force nonopt to "common+greedy"
+  nonoptPrimary = NonoptHS::common;
+  nonoptSecondary = NonoptHS::greedy;
+#endif
 }

@@ -85,6 +85,16 @@ ifneq ($(STATIC),0)
 	LMHS_CPPFLAGS += -static -static-libgcc -static-libstdc++
 endif
 
+ifeq ($(CONFIG),2015I)
+	LMHS_CPPFLAGS += -DE2015I
+	EXE = bin/LMHS-I-2015
+endif
+
+ifeq ($(CONFIG),2015C)
+	LMHS_CPPFLAGS += -DE2015C
+	EXE = bin/LMHS-C-2015
+endif
+
 .PHONY: all
 all: clean $(EXE)
 
