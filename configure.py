@@ -12,10 +12,10 @@ def path_of(dn, fn, t):
   filepath = str(filepath, "ASCII").split('\n')[0]
   return os.path.dirname(filepath)
 
-print("Paths required for only one of CPLEX/SCIP")
+print("""This script generates a file 'config.mk' with IP solver library paths.
+A path is required for only one of CPLEX/SCIP.""")
 print("""
-CPLEX Studio root directory
-(e.g. ../CPLEX_Studio126/)""")
+CPLEX Studio installation path (should contain 'cplex' and 'concert' directories)""")
 while studio_dir == '-':
   studio_dir = input("> ").strip()
   if studio_dir == "": break
@@ -31,8 +31,7 @@ while studio_dir == '-':
     concert_dir = path_of(studio_dir, "concert/include", 'd')
 
 print("""
-SCIP root directory
-(e.g. ../scipoptsuite-3.0.1/scip-3.0.1)""")
+SCIP path (Should contain SCIP's 'lib' and 'make' directories)""")
 while scip_dir == '-':
   scip_dir = input("> ").strip()
   if scip_dir == "": break
