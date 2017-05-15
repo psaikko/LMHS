@@ -26,10 +26,15 @@ typedef LingelingSolver SATSolver;
 
 #if defined(MIP_CPLEX)
 #include "CPLEXSolver.h"
+//#define MIPSolver CPLEXSolver
 typedef CPLEXSolver MIPSolver;
 #elif defined(MIP_SCIP)
 #include "SCIPSolver.h"
 typedef SCIPSolver MIPSolver;
+//#define MIPSolver SCIPSolver
+#elif defined(MIP_GUROBI)
+#include "GurobiSolver.h"
+typedef GurobiSolver MIPSolver;
 #else
 #error "No known MIP solver defined"
 #endif
@@ -80,6 +85,8 @@ void Solver::solve(ostream & out) {
   vector<int> solution;
   double weight;
 
+  instance.printStats();
+
   if (!cfg.solveAsMIP && !hardClausesSatisfiable()) {
     log(0, "s UNSATISFIABLE\n");
     fflush(stdout);
@@ -88,8 +95,6 @@ void Solver::solve(ostream & out) {
 
   if (cfg.solveAsMIP) 
     weight = solveAsMIP(solution);
-  else if (cfg.doCGMR)
-    weight = solveCoreGuidedMaxRes(solution);
   else if (cfg.doEnumeration) {
     double optWeight = -1;
     do {
@@ -97,7 +102,8 @@ void Solver::solve(ostream & out) {
       if (solution.empty()) break;
 
       double init_UB = 0;
-      for (auto & b_w : instance.bvar_weights) init_UB += b_w.second;
+      for (auto & b_w : instance.bvar_weights) 
+        init_UB += b_w.second;
       UB = init_UB;
 
       if (cfg.enumerationType < 0)
@@ -125,87 +131,6 @@ void Solver::solve(ostream & out) {
   }
 }
 
-double Solver::solveCoreGuidedMaxRes(vector<int> &out_solution) {
-
-  vector<int> empty_hs;
-  vector<int> new_core;
-  unordered_map<int, int> dummy;
-
-  function<double (vector<int> &) > core_minWeight = [&](vector<int> & c) -> double {
-    double mw = DBL_MAX;
-    for (int i : c) mw = min(mw, instance.bvar_weights[i]);
-    return mw;
-  };
-
-  function<int (vector<int> &) > core_minWeightCount = [&](vector<int> & c) -> int {
-    double mw = DBL_MAX;
-    int minCt = 0;
-    for (int i : c) mw = min(mw, instance.bvar_weights[i]);
-    for (int i : c) 
-      if (abs(instance.bvar_weights[i] - mw) < EPS)
-        ++minCt;
-    return minCt;
-  };
-
-  while (true) {
-
-    if (cfg.CGMR_mode == 0) {
-      getCore(empty_hs, new_core);
-    } else { 
-      if (cfg.CGMR_mode == 1) {
-        //
-        // find max number of heaviest soft clauses to include 
-        // using binary search
-        //
-        vector<pair<double, int>> sorted_bv;
-        for (auto & p : instance.bvar_weights) 
-          sorted_bv.push_back(make_pair(p.second, p.first));
-        sort(sorted_bv.begin(), sorted_bv.end());
-
-        unsigned kmin = 0, kmid;
-        unsigned kmax = sorted_bv.size();
-
-        while (kmin < kmax) {
-          kmid = (kmin + kmax) / 2;
-          vector<int> deactivated_bvars;
-          for (unsigned j = 0; j < kmid; ++j)
-            deactivated_bvars.push_back(sorted_bv[j].second);
-
-          getCore(deactivated_bvars, new_core);
-
-          if (new_core.empty()) {
-            // can add more clauses, deactivate fewer
-            updateUB();
-            kmax = kmid;
-          } else {
-            // unsat, deactivate more clauses
-            kmin = kmid;
-            if (kmin >= kmax - 1) break;
-          }
-        }
-      } else {
-        terminate(1, "Unknown CGMR_mode");
-      }
-    }
-
-    if (new_core.empty()) break;
-
-    cores.push_back(new_core); // for stats
-    relaxLB += instance.applyMaxRes(new_core, dummy);
-    LB = relaxLB;
-    log(1, "c LB %-20f UB %-20f\n", LB, UB);
-
-    if (UB - LB < EPS) {
-      log(1, "c solved by LB == UB\n");
-      out_solution.swap(UB_solution);
-      goto eva_stop;
-    }
-  }
-  instance.getSolution(out_solution);
-eva_stop:
-  return relaxLB;
-}
-
 void Solver::printSolution(ostream & out) {
 
   if (!opt_model.empty()) {
@@ -220,6 +145,7 @@ void Solver::printSolution(ostream & out) {
     } else {
       unsigned long i_opt_weight = (unsigned long) round(opt_weight);
       out << "o " << i_opt_weight << endl;  
+      cerr << "c " << opt_weight << endl;
     }
   } else {
     out << "s UNSATISFIABLE" << endl;  
@@ -297,6 +223,7 @@ double Solver::solveMaxHS(vector<int>& out_solution) {
   double weight = 0;
 
   //vector<int> core;
+  vector<vector<int>> new_cores;
   vector<int> new_core;
   vector<int> hs;
 
@@ -337,8 +264,7 @@ double Solver::solveMaxHS(vector<int>& out_solution) {
     
     getCore(hs, new_core);
     LB = relaxLB + weight;
-    log(1, "c LB %-20f UB %-20f\n", LB, UB);
-    fflush(stdout);
+    printBounds(LB, UB);
 
     // satisfiable with current assumptions -> found an optimal solution
     if (new_core.empty()) {
@@ -352,10 +278,13 @@ double Solver::solveMaxHS(vector<int>& out_solution) {
 
     // reduce MIP solver calls by trying to find cores with non-optimal hitting
     // sets
+    unsigned nonOpts = 0;
     if (cfg.doNonOpt) {
       while (true) {
         while (true) {
-          cfg.nonoptPrimary(hs, new_core, cores, instance.bvar_weights, coreClauseCounts);
+          new_cores.clear();
+          new_cores.push_back(new_core);
+          cfg.nonoptPrimary(hs, new_cores, cores, instance.bvar_weights, coreClauseCounts);
           if (cfg.logHS > 1) logHS(0, hs, false);
 
           // try to find a core using the non-optimal hitting set
@@ -368,12 +297,15 @@ double Solver::solveMaxHS(vector<int>& out_solution) {
             }
             break;
           }
-          ++nNonoptCores;
+          nNonoptCores += 1;
           processCore(new_core);
+          if (cfg.doLimitNonopt && (++nonOpts > cfg.nonoptLimit)) goto nonopt_stop;
         }
         // second nonopt stage exists?
         if (cfg.nonoptSecondary == nullptr) break;
-        cfg.nonoptSecondary(hs, new_core, cores, instance.bvar_weights, coreClauseCounts);
+        new_cores.clear();
+        new_cores.push_back(new_core);
+        cfg.nonoptSecondary(hs, new_cores, cores, instance.bvar_weights, coreClauseCounts);
         if (cfg.logHS > 1) logHS(0, hs, false);
 
         if (!getCore(hs, new_core)) {
@@ -386,13 +318,21 @@ double Solver::solveMaxHS(vector<int>& out_solution) {
           break;
         }
 
-        ++nNonoptCores;
+        nNonoptCores += 1;
         processCore(new_core);
+        if (cfg.doLimitNonopt && (++nonOpts > cfg.nonoptLimit)) goto nonopt_stop;
       }
     }
+    nonopt_stop: continue;
+
   } // end main MaxHS loop
 
 maxhs_stop:
+  if (cfg.MIP_exportModel) {
+    if (cfg.MIP_modelFile.size() == 0)
+      cfg.MIP_modelFile = instance.filename + ".lp";
+    mip_solver->exportModel(cfg.MIP_modelFile);
+  }
   solveTime = clock() - solStartTime;
   return relaxLB + weight;
 }
@@ -421,7 +361,7 @@ void Solver::printStats() {
 
   if (mip_solver) mip_solver->printStats();
   if (sat_solver) sat_solver->printStats();
-  instance.printStats();
+  
   log(1, "c Cores:\n");
   log(1, "c   total cores:  %lu\n", coreSizes.size());
   condLog(cfg.doDisjointPhase, 1, "c   disjoints:    %d\n", nDisjointCores);
@@ -469,7 +409,7 @@ bool Solver::getCore(vector<int>& hs, vector<int>& core) {
 
   if (cfg.doResetClauses) sat_solver->deleteLearnts();
   if (cfg.doInvertActivity) sat_solver->invertActivity();
-
+  
   return true;
 }
 
@@ -504,11 +444,11 @@ void Solver::findDisjointCores(vector<vector<int> >& disjointCores) {
     for (int b : core)
       minCost = min(minCost, instance.bvar_weights[b]);
     cost += minCost;
-    log(1, "c LB %-20f UB %-20f\n", relaxLB + cost, UB);
+    printBounds(relaxLB + cost, UB);
   }
 
   UB = relaxLB + instance.getSolutionWeight();
-  log(1, "c LB %-20f UB %-20f\n", relaxLB + cost, UB);
+  printBounds(relaxLB + cost, UB);
 
 
   log(1, "c Found %ld disjoint cores (%d minimized).\n",
@@ -516,6 +456,14 @@ void Solver::findDisjointCores(vector<vector<int> >& disjointCores) {
   
 
   disjointTime = clock() - disjointStart;
+}
+
+void Solver::printBounds(double lb, double ub) {
+  if (cfg.floatWeights)
+    log(1, "c LB %-20f UB %-20f\n", lb, ub);
+  else  
+    log(1, "c LB %-20lu UB %-20lu\n", (unsigned long) round(lb), (unsigned long) round(ub));
+  fflush(stdout);
 }
 
 void Solver::updateUB() {

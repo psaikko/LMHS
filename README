@@ -8,7 +8,7 @@ An IP solver must be separately installed to use LMHS.
 Two IP solvers, IBM CPLEX and SCIP, are supported without modification to the source code. 
 A free academic license for CPLEX can be obtained through the IBM Academic Initiative.
 SCIP can be downloaded at http://scip.zib.de/
-LMHS has been tested with CPLEX 12.6 and SCIP 3.1.0.
+LMHS has been tested with CPLEX 12.7 and SCIP 3.1.0.
 
 Run the configure.py script before compiling LMHS to set the necessary IP solver filepaths.
 
@@ -18,11 +18,11 @@ make accepts the following parameters:
 	SAT={minisat|lingeling}  choose SAT solver module
 	MIP={cplex|scip}         choose MIP solver module
 	LMHS_DEBUG={0|1}         compile with -DDEBUG, reduce optimization, include gdb debug info
-	STATIC={0|1}             produce binary with statically linked libgcc, libstdc++
-	CONFIG={2015I|2015C}     use a MaxSAT Evaluation 2015 configuration
 
 To invoke the solver, run
 ./bin/LMHS <wcnf filepath> <params>
+
+By default, LMHS uses its 2016 MaxSAT evaluation configuration.
 
 For information on solver parameters, run LMHS with the --help flag.
 

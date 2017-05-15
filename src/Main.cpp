@@ -37,14 +37,15 @@ int main(int argc, const char* argv[]) {
   cfg.parseArgs(argc, argv, cout);
 
   cout << setprecision(cfg.streamPrecision);
+  cerr << setprecision(cfg.streamPrecision);
 
   log(1, "c argv");
   for (int i = 0; i < argc; ++i)
     log(1, " %s", argv[i]);
   log(1, "\n");
 
-#ifdef VERSION
-  log(1, "c LMHS version " VERSION "\n");
+#ifdef GITHASH
+  log(1, "c solver git hash " GITHASH "\n");
 #endif
 #ifdef GITDATE
   log(1, "c git commit date " GITDATE "\n");
@@ -64,7 +65,7 @@ int main(int argc, const char* argv[]) {
     vm.map(file, mapped);
 
     if (!vm.partial)  {
-      // Skip preprocessing if no hard clauses exist
+      // TODO coprocessor use broken if no hard clauses
       pre.str(mapped.str());
     } else {
       int ci_status = ci.CP_preprocess(mapped, pre);
@@ -85,9 +86,15 @@ int main(int argc, const char* argv[]) {
     }
   }
 
+  if (cfg.use_coprocessor && cfg.pre_only) {
+    cout << pre.str();
+    return 0;
+  }
+
   istream & wcnf_in = cfg.use_coprocessor ? (istream &)pre : (istream &)file;
 
   ProblemInstance instance(wcnf_in);
+  instance.filename = string(argv[1]);
 
   maxsat_solver = new Solver(instance);
 

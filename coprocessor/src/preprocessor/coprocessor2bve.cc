@@ -545,6 +545,7 @@ bool Coprocessor2::bveFindGate(const Var variable, uint32_t& pos,
 
 bool Coprocessor2::resolveVar(const Var variable, int force) {
   bool didSomething = false;
+  std::unordered_set<Var> resolvent_labels; 
   // variable already set to some value?
   if (!search.assignment.is_undef(variable)) return didSomething;
   if (search.eliminated.get(variable)) return didSomething;
@@ -614,6 +615,12 @@ bool Coprocessor2::resolveVar(const Var variable, int force) {
 
       if (c1.isIgnored() || c1.isLearnt()) continue;
 
+      // add every label in both clauses to resolvent labels set
+      for (uint32_t k = 0; k < c1.size(); k++) {
+        Lit l = c1.get_literal(k);
+         if (doNotTouch.get(l.toVar())) resolvent_labels.insert(l.toVar());
+      }
+
       posClause_is_core = true;
 
       // use step array to mark literals from current clause
@@ -642,6 +649,11 @@ bool Coprocessor2::resolveVar(const Var variable, int force) {
         // TODO: handle ignored here?
         Clause& c2 = search.gsa.get(clauses_neg[j]);
         if (c2.isIgnored() || c2.isLearnt()) continue;
+
+        for (uint32_t k = 0; k < c2.size(); k++) {
+          Lit l = c2.get_literal(k);
+           if (doNotTouch.get(l.toVar())) resolvent_labels.insert(l.toVar());
+        }
 
         negClause_is_core = true;
 
@@ -739,6 +751,13 @@ bool Coprocessor2::resolveVar(const Var variable, int force) {
   techniqueSuccessEvent(do_bve);
   techniqueChangedLiteralNumber(do_bve,
                                 (int32_t)newLiterals - (int32_t)totalLiterals);
+
+  // resolution will be applied: add labels to SLE queue
+  for (Var v : resolvent_labels) {
+    if( debug > 2 ) { cerr << "c [SLE] mark " << v << endl; }
+    SLE_todo.insert(v);
+  }
+
   // apply resolution!
   Lit resolventLiterals
       [maxPositiveClauseSize + maxNegativeClauseSize];  // storage for resolvent

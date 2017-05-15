@@ -23,6 +23,7 @@ bool core_subset(const std::vector<int> & a, const std::vector<int> & b) {
 }
 
 std::string trim(const std::string & s) {
+  if (s.size() == 0) return s;
   size_t start = s.find_first_not_of(" \t\n");
   size_t end = s.find_last_not_of(" \t\n");
   return s.substr(start, end + 1);

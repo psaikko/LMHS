@@ -154,12 +154,27 @@ void Solver::releaseVar(Lit l)
 
 bool Solver::addClause_(vec<Lit>& ps)
 {
+
+
     assert(decisionLevel() == 0);
-    if (!ok) return false;
+
+    cancelUntil(0);
+
+    if (!ok) {
+        printf("c !ok\n");
+        return false;
+    }
+
+    if (decisionLevel() != 0) {
+        printf("c dl>0\n");
+        return false;
+    }
 
     // Check if clause is satisfied and remove false/duplicate literals:
     sort(ps);
     Lit p; int i, j;
+
+
     for (i = j = 0, p = lit_Undef; i < ps.size(); i++)
         if (value(ps[i]) == l_True || ps[i] == ~p)
             return true;
@@ -167,8 +182,10 @@ bool Solver::addClause_(vec<Lit>& ps)
             ps[j++] = p = ps[i];
     ps.shrink(i - j);
 
-    if (ps.size() == 0)
+    if (ps.size() == 0) {
+        printf("c 0-size clause\n");
         return ok = false;
+    }
     else if (ps.size() == 1){
         uncheckedEnqueue(ps[0]);
         return ok = (propagate() == CRef_Undef);
@@ -507,7 +524,15 @@ void Solver::uncheckedEnqueue(Lit p, CRef from)
 |      * the propagation queue is empty, even if there was a conflict.
 |________________________________________________________________________________________________@*/
 CRef Solver::propagate()
-{
+{   
+    CRef confl = CRef_Undef;
+
+    confl = unitPropagate();
+
+    return confl;
+}
+
+CRef Solver::unitPropagate() {
     CRef    confl     = CRef_Undef;
     int     num_props = 0;
 

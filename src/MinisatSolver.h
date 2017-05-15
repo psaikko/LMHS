@@ -36,6 +36,7 @@ class MinisatSolver : public ISATSolver {
 
   void deleteLearnts() { minisat->deleteLearnts(); }
   void invertActivity() { minisat->invertVarActivity(); }
+  void randomizeActivity() { minisat->randomizeVarActivity(); }
   void setRandomSeed(double seed) { minisat->random_seed = seed; }
 
   void printStats();

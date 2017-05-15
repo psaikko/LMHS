@@ -215,7 +215,8 @@ int32_t completeModel(std::ostream& data_out, std::istream& data_in,
     ss.get();
     ss >> weight;
     //data_out << setprecision(15);
-    data_out << "o " << (long)(weight + preprocessor.weightRemoved) << endl;
+    data_out << "c coprocessor removed weight " << preprocessor.weightRemoved << endl;
+    data_out << "o " << (weight_t)(weight + preprocessor.weightRemoved) << endl;
   }
 
   std::vector<Assignment> assignments;
@@ -280,10 +281,9 @@ int32_t preprocess(std::ostream& data_out, std::istream& data_in,
   (potentialGroups) = new std::vector<CL_REF>();
   (potentialGroups)->reserve(320);
 
-  std::unordered_map<Var, long>* whiteVars;
-  (whiteVars) = new std::unordered_map<Var, long>();
-  long top_weight = 0;
-  long parse_lb = 0;
+  std::unordered_map<Var, weight_t>* whiteVars = new std::unordered_map<Var, weight_t>();
+  weight_t top_weight = 0;
+  weight_t parse_lb = 0;
   Allocator globalClauseStorage;  /// global storage object
   searchData search(globalClauseStorage);
 

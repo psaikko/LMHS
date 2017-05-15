@@ -29,6 +29,7 @@ MinisatSolver::MinisatSolver() {
     upol = Minisat::l_True;
   else
     upol = Minisat::l_Undef;
+
 }
 
 void MinisatSolver::addVariable(int var) 
@@ -66,6 +67,8 @@ bool MinisatSolver::solve()
 
   ret = minisat->solve(assumptions);
   
+  condTerminate(!minisat->okay(), 1, "Error: MiniSat in conflicting state\n");
+
   end = clock();
   solver_time += (end - start);
   solver_calls++;
@@ -113,6 +116,7 @@ int MinisatSolver::newVar() {
 
 void MinisatSolver::addConstraint(vector<int>& constr) 
 {
+
   Minisat::vec<Minisat::Lit> minisat_clause(constr.size());
   for (unsigned i = 0; i < constr.size(); ++i) {
     int v = abs(constr[i]);
@@ -120,7 +124,8 @@ void MinisatSolver::addConstraint(vector<int>& constr)
     Minisat::Lit l = s ? ~Minisat::mkLit(v) : Minisat::mkLit(v);
     minisat_clause[i] = l;
   }
-  minisat->addClause_(minisat_clause);
+  bool ok = minisat->addClause_(minisat_clause);
+  condTerminate(!ok, 1, "Error: MiniSat addClause failed\n");
 }
 
 void MinisatSolver::getModel(vector<bool>& model) 

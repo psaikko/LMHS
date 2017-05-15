@@ -7,42 +7,55 @@ using namespace std;
 
 namespace NonoptHS {
 
-void _frac(double f, vector<int>& out_hs, const vector<int>& new_core,
+void _frac(double f, vector<int>& out_hs, const vector<vector<int>>& new_cores,
           const unordered_map<int, unsigned>& coreClauseCounts) {
+  for (auto core : new_cores) {
+    vector<pair<int, int>> cts_vars;
+    unsigned take = (int)ceil(core.size() * f);
 
-  vector<pair<int, int>> cts_vars;
-  unsigned take = (int)ceil(new_core.size() * f);
+    for (auto c : core)
+      if (count(out_hs.begin(), out_hs.end(), c))
+        goto skip;  // core already hit by out_hs
 
-  for (int v : new_core) 
-    cts_vars.push_back(make_pair(coreClauseCounts.at(v), v));
-  sort(cts_vars.begin(), cts_vars.end());
-  for (auto& occ_var : cts_vars) {
-    if (!take) break;
-    out_hs.push_back(occ_var.second);
-    --take;
-  }
-}
-
-void _disjoint(vector<int>& out_hs, const vector<int>& new_core) {
-  for (int v : new_core)
-    if (!count(out_hs.begin(), out_hs.end(), v)) out_hs.push_back(v);
-}
-
-void _common(vector<int>& out_hs, const vector<int>& new_core,
-            const unordered_map<int, unsigned>& coreClauseCounts) {
-
-  int maxVar = -1;
-  unsigned maxCount = 0;
-
-  for (int v : new_core) {
-    if (coreClauseCounts.at(v) > maxCount) {
-      maxVar = v;
-      maxCount = coreClauseCounts.at(v);
+    for (int v : core) cts_vars.push_back(make_pair(coreClauseCounts.at(v), v));
+    sort(cts_vars.begin(), cts_vars.end());
+    for (auto& occ_var : cts_vars) {
+      if (!take) break;
+      out_hs.push_back(occ_var.second);
+      --take;
     }
-  }
 
-  if (maxVar != -1)
-    out_hs.push_back(maxVar);
+  skip: continue;
+  }
+}
+
+void _disjoint(vector<int>& out_hs, const vector<vector<int>>& new_cores) {
+  for (auto core : new_cores)
+    for (int v : core)
+      if (!count(out_hs.begin(), out_hs.end(), v)) out_hs.push_back(v);
+}
+
+void _common(vector<int>& out_hs, const vector<vector<int>>& new_cores,
+            const unordered_map<int, unsigned>& coreClauseCounts) {
+  for (auto core : new_cores) {
+    int maxVar = -1;
+    unsigned maxCount = 0;
+    for (auto c : core)
+      if (count(out_hs.begin(), out_hs.end(), c))
+        goto skip;  // core already hit by out_hs
+
+    for (int v : core) {
+      if (coreClauseCounts.at(v) > maxCount) {
+        maxVar = v;
+        maxCount = coreClauseCounts.at(v);
+      }
+    }
+
+    if (maxVar != -1)
+      out_hs.push_back(maxVar);
+
+  skip: continue;
+  }
 }
 
 //
@@ -125,15 +138,15 @@ void _greedy(vector<int>& out_hs, const vector<vector<int>>& cores,
 }
 
 void common(vector<int>& out_hs, 
-           const vector<int>& new_core,
+           const vector<vector<int>>& new_cores,
            const vector<vector<int>>&,
            const unordered_map<int, double>&,
            const unordered_map<int, unsigned>& coreClauseCounts) {
-  _common(out_hs, new_core, coreClauseCounts);
+  _common(out_hs, new_cores, coreClauseCounts);
 }
 
 void greedy(vector<int>& out_hs, 
-           const vector<int>&,
+           const vector<vector<int>>&,
            const vector<vector<int>>& cores,
            const unordered_map<int, double>& weights,
            const unordered_map<int, unsigned>& coreClauseCounts) {
@@ -141,19 +154,19 @@ void greedy(vector<int>& out_hs,
 }
 
 funcType frac(double fracSize) {
-  return [&](vector<int>& out_hs, const vector<int>& new_core,
+  return [&](vector<int>& out_hs, const vector<vector<int>>& new_cores,
              const vector<vector<int>>&, const unordered_map<int, double>&,
              const unordered_map<int, unsigned>& coreClauseCounts) {
-    _frac(fracSize, out_hs, new_core, coreClauseCounts);
+    _frac(fracSize, out_hs, new_cores, coreClauseCounts);
   };
 }
 
 void disjoint(vector<int>& out_hs, 
-           const vector<int>& new_core,
+           const vector<vector<int>>& new_cores,
            const vector<vector<int>>&,
            const unordered_map<int, double>&,
            const unordered_map<int, unsigned>&) {
-  _disjoint(out_hs, new_core);
+  _disjoint(out_hs, new_cores);
 }
 
 }

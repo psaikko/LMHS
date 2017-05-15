@@ -27,10 +27,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <sstream>
 #include <iostream>
 #include <map>
+#include <algorithm>
+#include <limits>
 
 Coprocessor2::Coprocessor2(vector<CL_REF>* clause_set, searchData& sd,
-                           const StringMap& commandline, long tW)
+                           const StringMap& commandline, weight_t tW)
     : weightRemoved(0),
+      SLE_removed(0),
+      gSLE_removed(0),
+      gSLE_probe_removed(0),
+      gSLE_greedy_removed(0),
       postClauses(1024),
       timeoutTime(0),
       maintainTime(0),
@@ -112,8 +118,7 @@ Coprocessor2::Coprocessor2(vector<CL_REF>* clause_set, searchData& sd,
       lastTrailSize(0),
       simpRequests(0),
       simpRequestLimit(9),
-      simpRequestLimitInc(
-          0),  // do not increase the limit, the restart schedule will do!
+      simpRequestLimitInc(0),  // do not increase the limit, the restart schedule will do!
       simpRequestLimitIncInc(0),
       simplifying(false),
       simplifications(0),
@@ -369,14 +374,15 @@ void Coprocessor2::extendStructures(uint32_t newVar, bool initialize) {
 solution_t Coprocessor2::preprocess(
     std::ostream& data_out, std::istream& data_in, std::ostream& map_out,
     std::ostream& err_out, vector<CL_REF>* formulaTopreprocess,
-    vector<CL_REF>* potentialGroups, std::unordered_map<Var, long>* whiteVars,
-    long init_lb) {
+    vector<CL_REF>* potentialGroups, std::unordered_map<Var, weight_t>* whiteVars,
+    weight_t init_lb) {
   weightRemoved += init_lb;
 
   if (!enabled) return UNKNOWN;
   formula = formulaTopreprocess;
 
   // reject formulas that are too large!
+  /*
   if (!unlimited) {
     if (search.var_cnt > variableLimit ||
         formulaTopreprocess->size() > clauseLimit) {
@@ -386,6 +392,7 @@ solution_t Coprocessor2::preprocess(
       return UNKNOWN;
     }
   }
+  */
 
   // start timer
   maintainTime = get_microseconds() - maintainTime;
@@ -455,7 +462,7 @@ solution_t Coprocessor2::preprocess(
       bool added = addNexClause(l, label);
 
       if (!added) return UNSAT;
-      long labelW = -abs(labelWeight[l.toVar()]);
+      weight_t labelW = -abs(labelWeight[l.toVar()]);
 
       labelWeight[label.nr()] = labelW;
       labelWeight.erase(abs(l.nr()));
@@ -476,133 +483,18 @@ solution_t Coprocessor2::preprocess(
     if (do_rewritek) rewriteAMK();
   }
 
+  /* not needed if input isn't lcnf */
+  // init SLE queue with all labels
+  for (auto p : labelWeight) {
+    SLE_todo.insert(p.first);
+  }
+  
+
   if (only_group) {
     err_out << "c [CP2] Only recognizing groups, skipping preprocessloop"
             << endl;
   } else {
-    if (techniques.size() == 0) {
-      bool change = true;  // indicate whether a method did something
-      // preprocess
-      uint32_t round = 0;
-      bool didSubsumption = false, didBve = false, didEE = false,
-           didHte = false, didBce = false, didProbe = false, didHyper = false,
-           didVivi = false, didUnhide = false;
-      // run iteration as long as there is change or there is more to do
-      while (solution == UNKNOWN && !isInterupted()) {
-        round++;
-        change = false;
-        if (up && solution == UNKNOWN) {
-          change = propagateTopLevel() || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after up found solution " << solution << endl;
-        }
-        change = false;  // if( change ) continue does not make sense after the
-                         // first method!
-
-        if (pure && solution == UNKNOWN) {
-          change = eliminatePure() || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after pure found solution " << solution << endl;
-        }
-        if (change) continue;  // after pure, redo unit propagation!
-
-        if (subSimp && solution == UNKNOWN) {
-          change = selfSubsumption(!didSubsumption) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after susi found solution " << solution << endl;
-          didSubsumption = true;
-        }
-        // execute here, because subsumtion queue is empty
-        // garbageCollect();
-        if (change) continue;
-
-        if (!eeBehindBve) {
-          if (ee && solution == UNKNOWN) {
-            change = equivalenceElimination(!didEE) || change;
-            if (verbose > 0 && solution != UNKNOWN)
-              err_out << "c [CP2] after ee found solution " << solution << endl;
-            didEE = true;
-          }
-          if (change) continue;  // after pure, redo unit propagation!
-
-          // deleted something here
-        }
-
-        if (unhide && !didUnhide && solution == UNKNOWN) {
-          change = unhiding(!didUnhide) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after unhide found solution " << solution
-                    << endl;
-          didUnhide = true;
-        }
-        if (change) continue;
-
-        // finish up,pure and susi before timing out!
-        if (timedOut()) break;
-
-        if (hte && solution == UNKNOWN) {
-          change = hiddenTautologyElimination(!didHte) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after hte found solution " << solution << endl;
-          didHte = true;
-        }
-        if (change) continue;  // after pure, redo unit propagation!
-
-        if (bce && solution == UNKNOWN) {
-          change = blockedClauseElimination(!didBce) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after bce found solution " << solution << endl;
-          didBce = true;
-        }
-
-        if (bve && solution == UNKNOWN) {
-          change = variableElimination(!didBve) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after bve found solution " << solution << endl;
-          didBve = true;
-        }
-
-        if (eeBehindBve) {
-          if (ee && solution == UNKNOWN) {
-            change = equivalenceElimination(!didEE) || change;
-            if (verbose > 0 && solution != UNKNOWN)
-              err_out << "c [CP2] after ee found solution " << solution << endl;
-            didEE = true;
-          }
-          if (change) continue;  // after pure, redo unit propagation!
-        }
-
-        if (unhide && didUnhide && solution == UNKNOWN) {
-          change = unhiding(!didUnhide) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after unhide found solution " << solution
-                    << endl;
-        }
-        if (change) continue;
-
-        if (probe && solution == UNKNOWN) {
-          change = probing(!didProbe) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after probe found solution " << solution
-                    << endl;
-          didProbe = true;
-        }
-        if (change) continue;  // after pure, redo unit propagation!
-
-        if (vivi && solution == UNKNOWN) {
-          change = randomizedVivification(!didVivi) || change;
-          if (verbose > 0 && solution != UNKNOWN)
-            err_out << "c [CP2] after vivi found solution " << solution << endl;
-          didVivi = true;
-        }
-        if (change) continue;  // after pure, redo unit propagation!
-
-        break;
-      }
-
-    } else {
-      solution = preprocessScheduled();
-    }
+    solution = preprocessScheduled();
   }
 
   // rewriting?
@@ -698,157 +590,156 @@ solution_t Coprocessor2::preprocess(
   return solution;
 }
 
-solution_t Coprocessor2::preprocessScheduled() {
-  vector<string> grammar;
-  grammar.push_back(string());
-
-  char c = 0;
-  uint32_t pos = 0;
-  uint32_t line = 0;
-  uint32_t level = 0;
-  while (pos < techniques.size()) {
-    c = techniques[pos++];
-    if (c == '[') {
-      level++;
-      if (level > 1) {
-        exit(-2);
-      } else {
-        if (grammar[line].size() > 0) {
-          grammar.push_back(string());
-          line++;
-        }
-      }
-      continue;
-    }
-    if (c == ']') {
-      if (level < 1) {
-        exit(-2);
-      }
-      if (level == 1) {
-        // star behing brackets?
-        if (pos < techniques.size() && techniques[pos] == '+' &&
-            grammar[line].size() > 0) {
-          grammar[line] += "+";
-          pos++;
-        }
-        if (grammar[line].size() > 0) {
-          grammar.push_back(string());
-          line++;
-        }
-      }
-      level--;
-      continue;
-    }
-    if (c == '+') {
-      if (level == 0) {
-        continue;
-      }
-    }
-    grammar[line] += c;
+string Coprocessor2::Technique::toStr() {
+  if (id) {
+    return string(1, id);
+  } else {
+    string s = "";
+    for (Technique sub : children)
+      s += sub.toStr();
+    if (repeatUntilFixpoint)
+      return "[" + s + "]";
+    else 
+      return s;
   }
+}
 
-  if (grammar.size() == 0) return solution;
+bool Coprocessor2::Technique::execute(Coprocessor2& ref) {
+  
+  bool change;
 
-  uint32_t currentLine = 0;
-  uint32_t currentPosition = 0;
-  uint32_t currentSize = grammar[currentLine].size();
-  bool change = false;
-  bool didSubsumption = false, didBve = false, didEE = false, didHte = false,
-       didBce = false, didProbe = false, didHyper = false, didVivi = false,
-       didUnhide = false;
+  if (!id) {
+    bool subChange;
+    do {
+      subChange = false;
+      for (Technique sub : children) 
+        subChange |= sub.execute(ref);
+      change |= subChange;
+    } while (subChange && repeatUntilFixpoint);
+  } else {
+    if (ref.solution != UNKNOWN) return change;
 
-  char techniqueChars[] = {' ', 'u', 'p', 's', 'v', 'w', 'e', 'h',
-                           'b', 'r', 'y', 'a', 'o', 'g', 'x'};
-
-  while (solution == UNKNOWN &&
-         (currentLine < grammar.size() || currentPosition < currentSize)) {
-    char execute = grammar[currentLine][currentPosition];
-    if (execute ==
-        '+') {  // if there is a star in a line and there has been change,
-      if (change) {
-        currentPosition = 0;
-        continue;  // start current line in grammar again!
-      } else {
-        currentPosition++;
-      }
+    if (id == ref.techniqueChars[do_up] && ref.up) {
+      change = ref.propagateTopLevel();
+      return change;
     }
 
-    if (currentPosition >= currentSize) {  // start with next line, if current
-                                           // line has been evaluated
-      currentLine++;
-      if (currentLine < grammar.size()) {
-        currentSize = grammar[currentLine].size();
-        currentPosition = 0;
-        continue;
-      }
+    if (id == ref.techniqueChars[do_pure] && ref.pure) {
+      change = ref.eliminatePure();
+      return change;
     }
 
-    if (currentLine >= grammar.size())
-      break;  // stop if all lines of the grammar have been evaluated
-
-    if (currentPosition ==
-        0) {  // if the line is started from scratch, reset the change flag
-      change = false;
+    if (id == ref.techniqueChars[do_subSimp] && ref.subSimp) {
+      ref.subsumptionQueue.clear();
+      change = ref.selfSubsumption(true);
+      return change;
     }
 
-    // in the next iteration, the position is increased
-    currentPosition++;
-
-    subsumptionQueue.clear();
-
-    if (execute == techniqueChars[do_up] && up && solution == UNKNOWN) {
-      change = propagateTopLevel() || change;
-    }
-
-    if (execute == techniqueChars[do_pure] && pure && solution == UNKNOWN) {
-      change = eliminatePure() || change;
-    }
-
-    if (execute == techniqueChars[do_subSimp] && subSimp &&
-        solution == UNKNOWN) {
-      change = selfSubsumption(true) ||
-               change;  // list will be cleared at each iteration!
-      didSubsumption = true;
-    }
-
-    if (execute == techniqueChars[do_unhide] && unhide && solution == UNKNOWN) {
-      change = unhiding(!didUnhide) || change;
+    if (id == ref.techniqueChars[do_unhide] && ref.unhide) {
+      static bool didUnhide = false;
+      change = ref.unhiding(!didUnhide);
       didUnhide = true;
+      return change;
     }
 
-    if (execute == techniqueChars[do_ee] && ee && solution == UNKNOWN) {
-      change = equivalenceElimination(!didEE) || change;
+    if (id == ref.techniqueChars[do_ee] && ref.ee) {
+      static bool didEE = false;
+      change = ref.equivalenceElimination(!didEE);
       didEE = true;
+      return change;
     }
 
-    if (execute == techniqueChars[do_hte] && hte && solution == UNKNOWN) {
-      change = hiddenTautologyElimination(!didHte) || change;
+    if (id == ref.techniqueChars[do_hte] && ref.hte) {
+      static bool didHte = false;
+      change = ref.hiddenTautologyElimination(!didHte);
       didHte = true;
+      return change;
     }
 
-    if (execute == techniqueChars[do_bce] && bce && solution == UNKNOWN) {
-      change = blockedClauseElimination(!didBce) || change;
+    if (id == ref.techniqueChars[do_bce] && ref.bce) {
+      static bool didBce = false;
+      change = ref.blockedClauseElimination(!didBce);
       didBce = true;
+      return change;
     }
 
-    if (execute == techniqueChars[do_bve] && bve && solution == UNKNOWN) {
-      change = variableElimination(!didBve) || change;
+    if (id == ref.techniqueChars[do_bve] && ref.bve) {
+      static bool didBve = false;
+      change = ref.variableElimination(!didBve);
       didBve = true;
-    }
-    // deleted something here
-    if (execute == techniqueChars[do_probe] && probe && solution == UNKNOWN) {
-      change = probing(!didProbe) || change;
-      didProbe = true;
+      return change;
     }
 
-    if (execute == techniqueChars[do_vivi] && vivi && solution == UNKNOWN) {
-      change = randomizedVivification(!didVivi) || change;
+    if (id == ref.techniqueChars[do_probe] && ref.probe) {
+      static bool didProbe = false;
+      change = ref.probing(!didProbe);
+      didProbe = true;
+      return change;
+    }
+
+    if (id == ref.techniqueChars[do_vivi] && ref.vivi) {
+      static bool didVivi = false;
+      change = ref.randomizedVivification(!didVivi);
       didVivi = true;
+      return change;
+    }
+
+    if (id == ref.techniqueChars[do_sle]) {
+      change = ref.SLE();
+      return change;
+    }
+
+    if (id == ref.techniqueChars[do_gsle]) {
+      change = ref.generalizedSLE();
+      return change;
+    }
+
+    if (id == ref.techniqueChars[do_gsle_p]) {
+      change = ref.generalizedSLE_probe();
+      return change;
+    }
+
+    if (id == ref.techniqueChars[do_gsle_g]) {
+      change = ref.generalizedSLE_greedy();
+      return change;
+    }
+
+    if (id == ref.techniqueChars[do_gsle_e]) {
+      change = ref.generalizedSLE_exact();
+      return change;
+    }
+
+  }
+
+  return change;
+}
+
+
+solution_t Coprocessor2::preprocessScheduled() {
+  
+  vector<Technique> s;
+  s.push_back(Technique(0,false));
+
+  for (char c : techniques) {
+    if (c == '[') {
+      Technique next;
+      s.push_back(next);
+    } else if (c == ']') {
+      Technique completed = s.back();
+      s.pop_back();
+      s.back().children.push_back(completed);
+    } else {
+      Technique t(c);
+      s.back().children.push_back(t);
     }
   }
+
+  s.back().execute(*this);
 
   return solution;
 }
+
+
 
 bool Coprocessor2::enqueTopLevelLiteral(const Lit& l, bool evenIfSAT) {
   if (search.assignment.is_unsat(l)) {
@@ -893,6 +784,15 @@ bool Coprocessor2::propagateTopLevel() {
       Clause& clause = search.gsa.get(list(l)[0]);
       techniqueDoCheck(do_up);  // get some statistics
       if (!clause.isIgnored()) {
+
+        // mark clause labels for checking by SLE
+        for (uint32_t k = 0; k < clause.size(); k++) {
+          Lit l = clause.get_literal(k);
+          if (doNotTouch.get(l.toVar())) {
+            SLE_todo.insert(l.toVar());
+          }
+        }
+
         // assert( clause.size() != 1 && "units in the list have to be already
         // ignored");
         updateRemoveClause(clause);
@@ -919,6 +819,14 @@ bool Coprocessor2::propagateTopLevel() {
         search.big.removeClauseEdges(clause.get_literal(0),
                                      clause.get_literal(1));
       }
+
+      for (uint32_t k = 0; k < clause.size(); k++) {
+        Lit l = clause.get_literal(k);
+        if (doNotTouch.get(l.toVar())) { 
+          SLE_todo.insert(l.toVar());
+        }
+      }
+
       clause.removeLin(notL);
       techniqueChangedLiteralNumber(do_up, -1);
       // sort according to frequency!
@@ -1125,6 +1033,13 @@ bool Coprocessor2::selfSubsumption(bool firstCall) {
 
         didSomething = true;
         techniqueSuccessEvent(do_subSimp);
+
+        // mark labels for checking by SLE
+        for (uint32_t k = 0; k < cl_oc.size(); k++) {
+          Lit l = cl_oc.get_literal(k);
+          if (doNotTouch.get(l.toVar())) SLE_todo.insert(l.toVar());
+        }
+
         // If the return-literal of the subsumes_or_simplifies_clause-Method is
         // NO_LIT we have found a clause which is subsumed from the input-clause
         // thus we can ignore it from now and delete it later with the
@@ -1200,7 +1115,7 @@ void Coprocessor2::outputPostprocessInfo(std::ostream& map_out,
   map_out << labelWeight.size();
   for (auto v_w : labelWeight) {
     Var v = v_w.first;
-    long w = v_w.second;
+    weight_t w = v_w.second;
     map_out << " " << v << " " << w;
   }
   map_out << endl;
@@ -1347,7 +1262,7 @@ int32_t Coprocessor2::loadPostprocessInfo(std::istream& map_in,
   map_in >> n_var_pols;
   for (int i = 0; i < n_var_pols; ++i) {
     int v;
-    long w;
+    weight_t w;
     map_in >> v >> w;
     labelWeight[v] = w;
   }
@@ -2415,6 +2330,14 @@ void Coprocessor2::removeListIndex(const Lit& l, const uint32_t& index) {
 
 void Coprocessor2::removeClause(const CL_REF cl) {
   const Clause& clause = search.gsa.get(cl);
+
+  for (uint32_t k = 0; k < clause.size(); k++) {
+    Lit l = clause.get_literal(k);
+    if (doNotTouch.get(l.toVar())) {
+      SLE_todo.insert(l.toVar());
+    }
+  }
+
   for (uint32_t i = 0; i < clause.size(); ++i) {
     const Lit& l = clause.get_literal(i);
     for (uint32_t j = 0; j < list(l).size(); ++j) {
@@ -2429,6 +2352,10 @@ void Coprocessor2::removeClause(const CL_REF cl) {
 
 void Coprocessor2::removeClause(const Lit a, const Lit b, bool markDelete) {
   uint32_t ref = 0;
+
+  if (doNotTouch.get(a.toVar())) SLE_todo.insert(a.toVar());
+  if (doNotTouch.get(b.toVar())) SLE_todo.insert(b.toVar());
+
   for (uint32_t i = 0; i < list(a).size(); ++i) {
     Clause& cl = search.gsa.get(list(a)[i]);
     if (cl.isIgnored() || cl.size() != 2) continue;
@@ -2771,11 +2698,13 @@ void Coprocessor2::printFormula(std::ostream& data_out, std::ostream& err_out) {
   }
 
   if (print_dimacs) {
+
     if (solution == SAT) {
       printMaxSATSolution(data_out);
     } else if (solution == UNSAT) {
       data_out << "p wcnf 0 1" << endl << "0" << endl;
     } else {
+
       uint32_t clauseCount = 0;
       for (uint32_t i = 0; i < formula->size(); ++i) {
         const Clause& clause = search.gsa.get((*formula)[i]);
@@ -2787,7 +2716,7 @@ void Coprocessor2::printFormula(std::ostream& data_out, std::ostream& err_out) {
       data_out << "c assumptions ";
       for (auto& t_w : labelWeight) {
         Var t = t_w.first;
-        long weight = t_w.second;
+        weight_t weight = t_w.second;
         if (doNotTouch.get(t) && search.assignment.is_undef(t) &&
             (list(Lit(t, weight < 0 ? POS : NEG)).size() > 0)) {
           data_out << (weight < 0 ? " -" : " ") << t;
@@ -2820,7 +2749,7 @@ void Coprocessor2::printFormula(std::ostream& data_out, std::ostream& err_out) {
         Var t = t_w.first;
         std::stringstream s;
         if (doNotTouch.get(t)) {
-          long weight = t_w.second;
+          weight_t weight = t_w.second;
 
           if (weight == 0) continue;
           if (!search.assignment.is_undef(t)) {
@@ -2841,7 +2770,13 @@ void Coprocessor2::printFormula(std::ostream& data_out, std::ostream& err_out) {
         }
       }
 
+      unsigned int labelsRemoved = SLE_removed + gSLE_removed + 
+        gSLE_probe_removed + gSLE_greedy_removed + gSLE_exact_removed;
+      cout << "c [CP2] Labels removed " << labelsRemoved << endl;
+
       /*
+      err_out << "c [CP2] Generalized SLE removed " << genCount << endl; 
+      err_out << "c [CP2] SLE eliminated " << sleElim << endl; 
       err_out << "c [CP2] Weight removed " << weightRemoved << endl;
       err_out << "c [CP2] Labels removed " << labelsRemoved << endl;
       err_out << "c [CP2] Final Positive Labels " << final_Pos_Labels << endl;
@@ -2860,11 +2795,11 @@ void Coprocessor2::printMaxSATSolution(std::ostream& data_out) {
   // We get here if formula size is 0.
   data_out << "c SOLVED BY PREPROCESSOR " << endl;
   // COUNT OPTIMUM WEIGHT
-  long solutionW = 0;
+  weight_t solutionW = 0;
   for (auto& t_w : labelWeight) {
     Var t = t_w.first;
     if (doNotTouch.get(t) && !search.assignment.is_undef(t)) {
-      long weight = t_w.second;
+      weight_t weight = t_w.second;
       if ((weight * Lit(t, search.assignment.get_polarity(t)).nr()) < 0) {
         solutionW += abs(weight);
       }

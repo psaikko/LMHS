@@ -16,6 +16,10 @@ class CPLEXSolver : public IMIPSolver {
   bool solveForModel(std::vector<int>& model, double& weight);
   bool solveForHS(std::vector<int>& hittingSet, double& weight);
 
+  void exportModel(std::string file);
+  void setUpperBound(double ub);
+  void forceVar(int var, bool val);
+
  private:
 
   IloNumVar newObjVar(int v, double w);

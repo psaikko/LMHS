@@ -1,6 +1,7 @@
 #include "IMIPSolver.h"
 #include <scip/scip.h>
 #include <scip/scipdefplugins.h>
+#include <string>
 
 class SCIPSolver : public IMIPSolver {
 
@@ -17,6 +18,9 @@ class SCIPSolver : public IMIPSolver {
 
   bool solveForModel(std::vector<int>& model, double& weight);
   bool solveForHS(std::vector<int>& hittingSet, double& weight);
+
+  void exportModel(std::string file);
+  void setUpperBound(double ub);
 
  private:
   SCIP* scip;

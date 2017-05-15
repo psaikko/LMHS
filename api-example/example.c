@@ -79,9 +79,9 @@ int main(int argc, char **argv) {
 	LMHS_initializeWithRawData(nClauses, top, weights, clauses);
 
 	//
-	// Getting a solution from the LMHS solver:
+	// Getting a solution from the MAXSAT solver:
 	//
-	solution = LMHS_getOptimalSolution();
+	solution = LMHS_getSolution();
 	printSolution(solution);
 
 	//
@@ -95,9 +95,9 @@ int main(int argc, char **argv) {
 
 		//
 		// LMHS_addSoftClause and LMHS_addHardClause can also be called between 
-		// successive calls to LMHS_getOptimalSolution here.
+		// successive calls to LMHS_getSolution here.
 		//
-		solution = LMHS_getOptimalSolution();
+		solution = LMHS_getSolution();
 		printSolution(solution);
 	}
 

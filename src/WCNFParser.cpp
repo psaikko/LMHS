@@ -46,13 +46,14 @@ void scanNext(istream & in) {
   }
 }
 
-void readClause(istream & in, double& out_w, vector<int>& out_lits) {
+void readClause(istream & in, double& out_w, vector<int>& out_lits, bool& is_float) {
   int parsed_lit;
 
   if (weighted) {
     if (!(in >> out_w)) {
       terminate(1, "WCNF parse error - bad clause weight\n");
     }
+    if (out_w != round(out_w)) is_float = true;
   } else {
     out_w = 1.0;
   }
@@ -67,12 +68,14 @@ void readClause(istream & in, double& out_w, vector<int>& out_lits) {
 void parseWCNF(istream & wcnf_in, vector<double>& out_weights,
                vector<int>& out_branchVars, double& out_top,
                vector<vector<int> >& out_clauses, vector<int>& file_assumptions) {
+  GlobalConfig& cfg = GlobalConfig::get();
 
   unsigned n_vars = 0, n_clauses = 0, cnt = 0, soft_ct = 0, hard_ct = 0;
 
   double w = 0;
 
   bool p_line_parsed = false;
+  bool has_float_weights = false;
 
   for (;;) {
     skipWhitespace(wcnf_in);
@@ -133,7 +136,7 @@ void parseWCNF(istream & wcnf_in, vector<double>& out_weights,
             terminate(1, "WCNF parse error - clause read attempt before 'p' line\n");
           cnt++;
           out_clauses.push_back(vector<int>());
-          readClause(wcnf_in, w, out_clauses.back());
+          readClause(wcnf_in, w, out_clauses.back(), has_float_weights);
 
           if (w == out_top) ++hard_ct;
           else              ++soft_ct;
@@ -143,4 +146,6 @@ void parseWCNF(istream & wcnf_in, vector<double>& out_weights,
       }
     }
   }
+
+  if (has_float_weights) cfg.floatWeights = true;
 }

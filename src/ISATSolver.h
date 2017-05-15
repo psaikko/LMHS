@@ -67,6 +67,7 @@ class ISATSolver {
 
   virtual void deleteLearnts() =0;
   virtual void invertActivity() =0;
+  virtual void randomizeActivity() =0;
 
   //
   // Implemented common functionality:

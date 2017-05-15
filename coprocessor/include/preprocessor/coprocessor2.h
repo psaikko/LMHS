@@ -56,6 +56,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <iosfwd>
 #include <pthread.h>
 #include <unordered_map>
+#include <unordered_set>
 
 #include <unistd.h>
 
@@ -166,7 +167,7 @@ class Coprocessor2 {
  public:
   // LIB_VIRTUAL
   Coprocessor2(std::vector<CL_REF>* clause_set, searchData& sd,
-               const StringMap& commandline, long tW);
+               const StringMap& commandline, weight_t tW);
 
   LIB_VIRTUAL ~Coprocessor2();
 
@@ -181,7 +182,7 @@ class Coprocessor2 {
                  std::ostream& map_out, std::ostream& err_out,
                  std::vector<CL_REF>* formula,
                  std::vector<CL_REF>* potentialGroups,
-                 std::unordered_map<Var, long>* whiteVars, long init_lb);
+                 std::unordered_map<Var, weight_t>* whiteVars, weight_t init_lb);
 
   LIB_VIRTUAL bool doSimplify(searchData& sd);
 
@@ -223,9 +224,16 @@ class Coprocessor2 {
   LIB_VIRTUAL void extend(uint32_t newVariables,
                           uint32_t suggestedCapacity = 0);
 
-  std::unordered_map<Var, long> labelWeight;  /// map that stores the label
+  std::unordered_map<Var, weight_t> labelWeight;  /// map that stores the label
                                               /// weights
-  long weightRemoved;
+  std::unordered_map< Var, Var > explainedVars;     /// Used for data regarding redundant vars
+  weight_t weightRemoved;
+
+  unsigned int SLE_removed;
+  unsigned int gSLE_removed;
+  unsigned int gSLE_probe_removed;
+  unsigned int gSLE_greedy_removed;
+  unsigned int gSLE_exact_removed;
 
  protected:
   /** write postprocess information to file specified in mapFile attribute
@@ -263,7 +271,7 @@ class Coprocessor2 {
   vector<vector<CL_REF> > occurrenceList;  /// store per literal a reference to
                                            /// the clause where it appears
 
-  long topW;  /// top weight for setting hard clauses
+  weight_t topW;  /// top weight for setting hard clauses
   Heap<uint32_t, std::less<uint32_t> > literalHeap;   /// heap that stores the
                                                       /// literals according to
                                                       /// their frequency
@@ -294,7 +302,7 @@ class Coprocessor2 {
    * @return false if unsatisfiable
    */
   bool addFormula(vector<CL_REF>& clauses);
-  /**	 add the clause to the structures, enque if unit clause, ignore if
+  /**  add the clause to the structures, enque if unit clause, ignore if
    * already sat
    * @param callChange if true, will also call "updateChangeClause" method
    * @return false, if adding results immediately in unsat
@@ -365,24 +373,29 @@ class Coprocessor2 {
   Var nextVariable();
 
   // ==== technique control ====
+  char techniqueChars[18] = {' ', 'u', 'p', 's', 'v', 'l', 'e', 'h',
+                           'b', 'r', 'y', 'a', 'g', 'o', 'x', '1', '2', '3'};
+
   enum availableTechniques {
-    do_up = 1,       // [u] unit propagation
-    do_pure = 2,     // [p] pure literal elimination
-    do_subSimp = 3,  // [s] subsumption and self-subsuming resolution
-    do_bve = 4,      // [v] bounded variable elimination
-    // deleted something here
-    do_ee = 6,      // [e] equivalence elimination
-    do_hte = 7,     // [h] hidden tautology elimination
-    do_bce = 8,     // [b] blocked clause elimination
-    do_probe = 9,   // [r] blocked clause elimination
-    do_hyper = 10,  // [y] hyper binary resolution
-    do_vivi = 11,   // [v] clause vivification
-    // deleted something here
-    do_unhide = 13,  // [b] advanced unhiding algorithm
-    // deleted something here
+    do_up=1,    // [u] unit propagation
+    do_pure=2,  // [p] pure literal elimination
+    do_subSimp=3, // [s] subsumption and self-subsuming resolution
+    do_bve=4,   // [v] bounded variable elimination
+    do_sle=5,   // [l] SLE
+    do_ee=6,    // [e] equivalence elimination
+    do_hte=7,   // [h] hidden tautology elimination
+    do_bce=8,   // [b] blocked clause elimination
+    do_probe=9, // [r] prob
+    do_hyper=10,  // [y] hyper binary resolution
+    do_vivi=11, // [v] clause vivification
+    do_gsle = 12, // [g] Generalized SLE
+    do_unhide=13,   // [b] advanced unhiding algorithm
+    do_gsle_p=15, // [1] gSLE with probing
+    do_gsle_g=16, // [2] gSLE with greedy hs algorithm
+    do_gsle_e=17, // [2] gSLE with bruteforce exact algorithm
     // if technique is added, also add line to showStatistics method
     numberOfTechniques =
-        15,  // number of techniques, add other techniques before!
+        17,  // number of techniques, add other techniques before!
   };
 
   /** method that returns whether the next wanted technique can be executed
@@ -443,9 +456,27 @@ class Coprocessor2 {
    */
   bool eliminatePure(bool expensive = false);
 
-  // ==== subsumption, self subsuming resolution ====
-  deque<CL_REF> subsumptionQueue;  /// queue that stores all the clauses that
-                                   /// should be tested for subsuming something
+  // ==== SLE, gSLE ====
+
+  std::unordered_set<Var> SLE_todo;
+
+  bool SLE();
+
+  bool generalizedSLE();
+
+  bool generalizedSLE_greedy();
+
+  bool generalizedSLE_exact();
+
+  bool generalizedSLE_probe();
+
+  weight_t exactHS(unordered_set<Var> &hs, vector<vector<Var>>& sets, weight_t lim,
+                   weight_t headWeight = 0, int d = 0);
+
+      // ==== subsumption, self subsuming resolution ====
+      deque<
+          CL_REF> subsumptionQueue;  /// queue that stores all the clauses that
+  /// should be tested for subsuming something
 
   /** run subsumption for the formula
    * @return true, if the formula has been changed
@@ -819,7 +850,7 @@ class Coprocessor2 {
   /** check all clauses whether they are ignored if they contain eliminated
   *literals
   *
-  *	checks also, whether they still occur in any occurence lists
+  * checks also, whether they still occur in any occurence lists
   */
   void scanClauses();
 
@@ -948,6 +979,22 @@ class Coprocessor2 {
   uint32_t verbose;          /// verbosity level for preprocessor
   uint32_t blockedLearnt;    /// number blocked learned clauses
   CL_REF trackClause;        /// id of clause that should be tracked
+
+
+  ///////////////////////////////// Technique string parsing
+
+  class Technique {
+   public:
+    char id;
+    bool repeatUntilFixpoint;
+    vector<Technique> children;
+    Technique(char c = 0, bool repeat = true) : id(c), repeatUntilFixpoint(repeat) {}
+
+    bool execute(Coprocessor2& ref);
+
+    std::string toStr();
+  };
+
 };
 
 #endif

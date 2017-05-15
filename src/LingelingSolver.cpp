@@ -31,13 +31,6 @@ void LingelingSolver::getConflict(vector<int>& conflict) {
   }
 }
 
-void LingelingSolver::findCores(vector<vector<int>>& out_cores) {
-  out_cores.clear();
-  vector<int> core;
-  findCore(core);
-  if (core.size()) out_cores.push_back(core);
-}
-
 bool LingelingSolver::findCoreLimited(vector<int>& /*out_core*/) {
   terminate(1, "LingelingSolver::findCoreLimited not yet implemented\n");
   return false;
@@ -140,6 +133,11 @@ void LingelingSolver::deleteLearnts() {
 
 void LingelingSolver::invertActivity() {
   lglinvertvsids(lgl);
+}
+
+void LingelingSolver::randomizeActivity() {
+  printf("LingelingSolver::randomizeActivity not implemented\n");
+  exit(1);
 }
 
 void LingelingSolver::setVarPolarity(int var, bool polarity) {

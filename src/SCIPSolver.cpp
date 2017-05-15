@@ -183,6 +183,10 @@ bool SCIPSolver::solveForHS(std::vector<int>& out_solution, double& out_weight) 
   return true;
 }
 
+void SCIPSolver::exportModel(std::string file) {
+  SCIPwriteOrigProblem(scip, file.c_str(), NULL, true);
+}
+
 SCIP_RETCODE SCIPSolver::_findSolution (
         std::vector<int>&   out_solution,
         double&             out_weight) 
@@ -226,4 +230,10 @@ void SCIPSolver::addVariable(int) {
 bool SCIPSolver::solveForModel(std::vector<int>&, double&) {
   printf("SCIPSolver::solveForModel not implemented\n");
   exit(1);
+}
+
+void SCIPSolver::setUpperBound(double ub) {
+  if (ub < scip->primal->upperbound) {
+    SCIPprimalSetUpperbound(scip->primal, scip->mem->probmem, scip->set, scip->stat, scip->eventqueue, scip->transprob, scip->tree, scip->lp, ub);
+  }
 }

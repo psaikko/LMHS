@@ -31,7 +31,6 @@ class LingelingSolver : public ISATSolver {
   void addConstraint(std::vector<int>& constr);
 
   void findCore(std::vector<int>& out_core);
-  void findCores(std::vector<std::vector<int>>& out_core);
   
   bool solve();
   void getModel(std::vector<bool>& model);
@@ -44,6 +43,7 @@ class LingelingSolver : public ISATSolver {
   void setVarPolarity(int var, bool polarity);
   void setVarDecision(int /*var*/, bool /*decision*/) {}
   void setBudgets(long /*props*/, long /*confs*/) {}
+  void randomizeActivity();
 
   // Activate every clause by setting all b-variables to false
   // (set least significant bit to 1)

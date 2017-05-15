@@ -14,7 +14,7 @@ DEBUG = -DNDEBUG
 SPACE = " "
 
 #compiler, linker, archiver
-CPP = g++-4.8 -std=c++11
+CPP = g++ -std=c++11
 #/usr/local/bin/g++ -std=c++0x
 #	icpc -fast -Wall -DCOMPILE_INTEL
 AR  = ar

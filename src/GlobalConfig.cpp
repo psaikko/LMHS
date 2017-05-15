@@ -8,10 +8,9 @@
 
 using namespace std;
 
-// TODO: do something about this mess
-
 void GlobalConfig::printHelp(ostream & out) {
   vector<vector<string> > pds;
+  // TODO: do something about this mess
   
   // parameter defaultValue possibleValues description
   pds.push_back({"--verb", "1", "int", "[0 .. 3]", 
@@ -45,7 +44,7 @@ void GlobalConfig::printHelp(ostream & out) {
 
   pds.push_back({"--nonopt", "true", "bool", "", 
     "Use approximations min cost hitting set to find multiple cores per iteration"});
-  pds.push_back({"--nonopt", "disjoint+greedy", "string", "{disjoint, common, frac, greedy}", 
+  pds.push_back({"--nonopt", "disjoint", "string", "{disjoint, common, frac, greedy}", 
     "Strategy to use for minimum cost hitting set approximations\n"
     "common: add the variable with the most occurrences in cores so far\n"
     "frac: like common but add some fraction of the most occurring\n"
@@ -53,29 +52,18 @@ void GlobalConfig::printHelp(ostream & out) {
     "disjoint: add entire core to hitting set. Finds disjoint set of cores between\n"
     "          optimal hitting sets. Equivalent to --nonopt frac --frac-size 1.0\n"
     "greedy: use a greedy MCHS algorithm\n"
-    "[strategy]+greedy: use greedy algorithm as fallback for another strategy."});
+    "[strategy]+greedy: use greedy algorithm as fallback for another strategy.\n"});
 
   pds.push_back({"--frac-size", "0.1", "double", "(0 .. 1]", 
     "When using \"--nonopt frac\", the fraction of the core to add to the nonopt HS"});
 
-  pds.push_back({"--cgmr", "false", "bool", "", 
-    "Relax cores in SAT formula instead of finding hitting sets.\n"
-    "When used with --no-rerefute and --no-minimize, essentially identical to\n"
-    "eva solver of AAAI 2014 paper \"Maximum Satisfiability using core-guided MAXSAT Resolution\""});
-  pds.push_back({"--cgmr", "0", "int", "[0 .. 1]",
-    "Additional heuristics for core-guided MAXSAT resolution\n"
-    "0: (default) relax first core found\n"
-    "1: use binary search to find max min weight core"});
-
   pds.push_back({"--ip", "false", "bool", "", 
     "Solve instance using IP solver with standard MaxSAT to IP transformation"});
 
-  pds.push_back({"--relax-disjoint", "false", "bool", "", 
-    "Find and relax an initial set of disjoint cores as a\n"
-    "presolving step before MaxHS"});  
-
-  pds.push_back({"--preprocess", "true", "bool", "", 
+  pds.push_back({"--preprocess", "false", "bool", "", 
     "Enable SAT-based preprocessing"});
+  pds.push_back({"--pre-only", "false", "bool", "", 
+    "Only output preprocessed formula"});
   pds.push_back({"--pre-lcnf", "true", "bool", "", 
     "Treat preprocessed instance as LCNF."
     "Reuses auxiliary variables from preprocessing in solver."});
@@ -83,17 +71,61 @@ void GlobalConfig::printHelp(ostream & out) {
     "Use group detection in preprocessor."});
   pds.push_back({"--pre-group-only", "false", "bool", "", 
     "Only use group detection."});
-  pds.push_back({"--pre-techniques", "[vpusb]+", "string", "valid coprocessor 2 technique parameter", 
-    "Technique selection string passed to preprocessor."});
+  pds.push_back({"--pre-techniques", "[vpusb]", "string", "", 
+    "Modified CoProcessor2 technique string.\n"
+    "Blocks of techniques in brackets are repeated until fixpoint.\n"
+    "Nested blocks are supported."});
+
+  pds.push_back({"--random-seed", "9", "int", "[0 .. imax]",
+    "Passed directly to srand to seed random number generation for the maxsat solver"});
+
+  pds.push_back({"--mip-threads", "1", "int", "[0 .. imax]",
+    "CPLEX Threads"});
+  pds.push_back({"--mip-intensity", "2", "int", "[0 .. 4]",
+    "CPLEX SolnPoolIntensity"});
+  pds.push_back({"--mip-replace", "2", "int", "[0 .. 2]",
+    "CPLEX SolnPoolReplace"});
+  pds.push_back({"--mip-capacity", "10", "int", "[0 .. imax]",
+    "CPLEX SolnPoolCapacity"});
+  pds.push_back({"--mip-poplim", "100", "int", "[0 .. imax]",
+    "CPLEX PopulateLim"});
+  pds.push_back({"--mip-start", "2", "int", "[0 .. 2]",
+    "CPLEX AdvInd"});
+  pds.push_back({"--mip-emph", "0", "int", "[0 .. 4]",
+    "CPLEX MIPEmphasis"});
+
+  pds.push_back({"--sat-polarity", "0", "int", "[-1 .. 1]", 
+    "Set the sat solver variable polarity to control branching\n"
+    "(-1=false, 0=undefined, 1=true)"});
+  pds.push_back({"--sat-var-decay", "0.95", "double", "(0 .. 1)", 
+    "MiniSat: Variable activity decay factor"});
+  pds.push_back({"--sat-cla-decay", "0.999", "double", "(0 .. 1)", 
+    "MiniSat: Clause activity decay factor"});
+  pds.push_back({"--sat-rnd-freq", "0", "double", "[0 .. 1]", 
+    "MiniSat: The frequency with which the decision heuristic tries to choose a random variable "});
+  pds.push_back({"--sat-rnd-seed", "91648253", "double", "(0 .. inf)",
+    "MiniSat: The fraction of wasted memory allowed before a garbage collection is triggered"});
+  pds.push_back({"--sat-gc-frac", "0.20", "double", "(0 .. inf)",
+    "MiniSat: The fraction of wasted memory allowed before a garbage collection is triggered"});
+  pds.push_back({"--sat-cc-min-mode", "2", "int", "[0 .. 2]",
+    "MiniSat: Controls conflict clause minimization in (0=none, 1=basic, 2=deep)"});
+  pds.push_back({"--sat-phase-saving", "2", "int", "[0 .. 2]",
+    "MiniSat: Controls the level of phase saving in (0=none, 1=limited, 2=full)"});
+  pds.push_back({"--sat-rnd-init-act", "false", "bool", "",
+    "MiniSat: Randomize initial activity"});
+  pds.push_back({"--sat-luby", "true", "bool", "",
+    "MiniSat: Use the Luby restart sequence"});
+  pds.push_back({"--sat-restart-first", "100", "int", "[1 .. imax]",
+    "MiniSat: The base restart interval"});
+  pds.push_back({"--sat-restart-inc", "2", "double", "(1 .. inf)",
+    "MiniSat: Restart interval increase factor"});
+  pds.push_back({"--sat-learntsize-factor", "1.0/3.0", "double", "(0 .. 100]", 
+    "MiniSat: Limit on number of learnt clauses as a fraction of original clauses"});
+  pds.push_back({"--sat-learntsize-inc", "1.1", "double", "(0 .. 100]", 
+    "MiniSat: Rate at which learntsize-factor increases between restarts"});
 
   pds.push_back({"--infile-assumps", "false", "bool", "",
     "LCNF: get assumption variables and polarities from \"c assumptions ...\" line in input"});
-
-  pds.push_back({"--float-weights", "true", "bool", "",
-    "Disable if output precision issues arise with very\n"
-    "large integer weights."});
-  pds.push_back({"--stream-precision", "15", "int", "",
-    "C++ output stream decimal precision (std::setprecision)"});
 
   for (auto pd : pds) {
     if (pd[2] == "bool") {
@@ -148,9 +180,10 @@ void GlobalConfig::parseArgs(int argc, const char** argv, ostream & out) {
 
   doNonOpt = args.getBoolOption("-nonopt", true);
   fracSize = args.getDoubleOption("-frac-size", 0.1);
+
   // type of non-optimal hitting set method to use
   if (doNonOpt) {
-    string nonOptType = args.getStringOption("-nonopt", "disjoint+greedy");
+    string nonOptType = args.getStringOption("-nonopt", "common+greedy");
     if (string_beginsWith(nonOptType, "common")) {
       nonoptPrimary = NonoptHS::common;
     } else if (string_beginsWith(nonOptType, "greedy")) {
@@ -170,16 +203,31 @@ void GlobalConfig::parseArgs(int argc, const char** argv, ostream & out) {
     }
   }
 
-  doCGMR = args.getBoolOption("-cgmr", false);
-  if (doCGMR)
-    CGMR_mode = args.getIntOption("-relax-only", 0);  
-
   solveAsMIP = args.getBoolOption("-ip", false);
 
   srand(args.getIntOption("-random-seed", 9));
 
   // blocking vars / assumptions specified using wcnf comment line
   inFileAssumptions = args.getBoolOption("-infile-assumps", false);
+
+  streamPrecision = args.getIntOption("-stream-precision", 15);
+
+  // zero = no limit
+  minimizePropLimit = args.getIntOption("-min-prop-lim", 0);
+  minimizeConfLimit = args.getIntOption("-min-conf-lim", 0);
+
+  use_coprocessor = args.getBoolOption("-preprocess", true);
+  pre_only = args.getBoolOption("-pre-only", false);
+  pre_techniques   = args.getStringOption("-pre-techniques", "[vpusbg]");
+  pre_group        = args.getBoolOption("-pre-group", true);
+  pre_group_only   = args.getBoolOption("-pre-group-only", false);
+
+  doLimitNonopt = args.getBoolOption("-limit-nonopt", false);
+  if (doLimitNonopt)
+    nonoptLimit = args.getIntOption("-limit-nonopt", INT_MAX);
+
+  isLCNF = inFileAssumptions || use_coprocessor;
+  doFindBvarClauses = args.getBoolOption("-eq-b-clauses", true);
 
   // CPLEX options
   MIP_threads = args.getIntOption("-mip-threads", 1);
@@ -206,41 +254,18 @@ void GlobalConfig::parseArgs(int argc, const char** argv, ostream & out) {
   SAT_learntSizeInc = args.getDoubleOption("-sat-learntsize-inc", 1.1);
   SAT_restartFirst = args.getIntOption("-sat-restart-first", 100);
 
-  use_coprocessor = args.getBoolOption("-preprocess", true);
-  pre_lcnf         = args.getBoolOption("-pre-lcnf", true);
-  pre_techniques   = args.getStringOption("-pre-techniques", "[vpusb]+");
-  pre_group        = args.getBoolOption("-pre-group", true);
-  pre_group_only   = args.getBoolOption("-pre-group-only", false);
-
-  isLCNF = inFileAssumptions || (use_coprocessor && pre_lcnf);
-
-  streamPrecision = args.getIntOption("-stream-precision", 15);
-  floatWeights = args.getBoolOption("-float-weights", false);
-
-  // zero = no limit
-  minimizePropLimit = args.getIntOption("-min-prop-lim", 0);
-  minimizeConfLimit = args.getIntOption("-min-conf-lim", 0);
+  MIP_exportModel = args.getBoolOption("-mip-export-model", false);
+  if (MIP_exportModel) {
+    MIP_modelFile = args.getStringOption("-mip-export-model", "");
+    if (!(MIP_modelFile == "" || string_endsWith(MIP_modelFile, ".lp") 
+                            || string_endsWith(MIP_modelFile, ".sav")
+                            || string_endsWith(MIP_modelFile, ".mps"))) {
+      terminate(1, "Invalid extension on MIP model filename\n");
+    }
+  }
 
   initialized = true;
-
-
-#ifdef E2015I
-  // enable preprocessing
-  use_coprocessor = true;
-  isLCNF  = true;
   floatWeights = false;
-  // force nonopt to "disjoint"
-  nonoptPrimary = NonoptHS::disjoint;
-  nonoptSecondary = nullptr;
-#endif
 
-#ifdef E2015C
-  // enable preprocessing
-  use_coprocessor = true;
-  isLCNF  = true;
-  floatWeights = false;
-  // force nonopt to "common+greedy"
-  nonoptPrimary = NonoptHS::common;
-  nonoptSecondary = NonoptHS::greedy;
-#endif
+  printf("c MaxSAT Evaluation 2016 version\n");
 }

@@ -82,9 +82,9 @@ FileParser::FileParser(const StringMap& commandline) {
 solution_t FileParser::parse_file(std::istream& data_in, std::ostream& err_out,
                                   searchData& search,
                                   std::vector<CL_REF>* clauses,
-                                  std::unordered_map<Var, long>* whiteVars,
-                                  long& tW, std::vector<CL_REF>* unit_softs,
-                                  long& weightRemoved) {
+                                  std::unordered_map<Var, weight_t>* whiteVars,
+                                  weight_t& tW, std::vector<CL_REF>* unit_softs,
+                                  weight_t& weightRemoved) {
   if (!parse) return UNKNOWN;
 
   assert(search.capacity() == 0);
@@ -139,8 +139,28 @@ solution_t FileParser::parse_file(std::istream& data_in, std::ostream& err_out,
       continue;
     }
 
+    // needs to be a number except 0 -> scan clause
+    clause_lits.clear();
+    bool satisfiedClause = false;
+    bool isHardC = false;
+    weight_t weight = 0;
+    uint32_t clause_size = 0;
+    if (weighted) {
+      while (line[ind] >= '0' && line[ind] <= '9') {
+        weight *= 10;
+        weight += line[ind++] - '0';
+      }
+    } else {
+      weight = 1;
+    }
+
+    // skip whitespaces
+    while (line[ind] == ' ') ind++;
+
+    isHardC = (weight == tW);
+
     // empty clause -> UNSAT
-    if (line[ind] == '0') {
+    if (line[ind] == '0' && isHardC) {
       // clean up
       for (uint32_t i = 0; i < clause_set.size(); ++i) {
         Clause& cl = search.gsa.get(clause_set[i]);
@@ -158,26 +178,6 @@ solution_t FileParser::parse_file(std::istream& data_in, std::ostream& err_out,
               << " : " << line << " )" << endl;
       exit(1);
     }
-
-    // needs to be a number except 0 -> scan clause
-    clause_lits.clear();
-    bool satisfiedClause = false;
-    bool isHardC = false;
-    long weight = 0;
-    uint32_t clause_size = 0;
-    if (weighted) {
-      while (line[ind] >= '0' && line[ind] <= '9') {
-        weight *= 10;
-        weight += line[ind++] - '0';
-      }
-    } else {
-      weight = 1;
-    }
-
-    // skip whitespaces
-    while (line[ind] == ' ') ind++;
-
-    isHardC = (weight == tW);
 
     while (line.size() > ind) {  // read each single number
       int32_t number = 0;
@@ -239,9 +239,9 @@ solution_t FileParser::parse_file(std::istream& data_in, std::ostream& err_out,
     if (clause_size == 1 && !isHardC) {
       // MIGHT BE GROUP
       const Lit unit = clause_lits[0];
-      long new_w = unit.nr() < 0 ? -weight : weight;
+      weight_t new_w = unit.nr() < 0 ? -weight : weight;
       if (whiteVars->count(abs(unit.nr()))) {
-        long old_w = (*whiteVars)[abs(unit.nr())];
+        weight_t old_w = (*whiteVars)[abs(unit.nr())];
         (*whiteVars)[abs(unit.nr())] = new_w + old_w;
         if ((new_w < 0) != (old_w < 0))
           weightRemoved += min(abs(new_w), abs(old_w));

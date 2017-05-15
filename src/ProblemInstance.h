@@ -8,6 +8,7 @@
 
 #include <unordered_map>
 #include <vector>
+#include <string>
 #include <iosfwd>
 
 class ProblemInstance {
@@ -38,8 +39,6 @@ class ProblemInstance {
                                      bool original = true);
 
   void getBvarEquivConstraints(std::vector<std::vector<int> >& out_constraints);
-  void getBvarHyperedges(std::vector<std::vector<int> >& out_hyperedges,
-                         std::vector<int>& out_vertices);
   void getLabelOnlyClauses(std::vector<std::vector<int> > & label_clauses);
 
   double applyMaxRes(std::vector<int>& core,
@@ -59,6 +58,7 @@ class ProblemInstance {
 
   int max_var; 
   clock_t parseTime;
+  std::string filename;
 
  private:
   ProblemInstance(const ProblemInstance&);

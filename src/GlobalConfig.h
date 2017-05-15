@@ -19,6 +19,7 @@ class GlobalConfig {
 
   bool initialized;
 
+  //
   bool floatWeights;
   unsigned streamPrecision;
 
@@ -39,23 +40,24 @@ class GlobalConfig {
   long minimizePropLimit;
   long minimizeConfLimit;
 
-  // eva-like solver options
-  bool doCGMR;
-  int CGMR_mode;
+  bool doLimitNonopt;
 
   // use only MIP
   bool solveAsMIP;
 
   bool isLCNF;
   bool inFileAssumptions;
+  bool doFindBvarClauses;
 
   bool use_coprocessor;
   std::string pre_techniques;
   bool pre_lcnf;
   bool pre_group;
   bool pre_group_only;
+  bool pre_only;
 
   double fracSize;
+  unsigned nonoptLimit;
   unsigned satTimeLimit;
 
   int verbosity;
@@ -87,6 +89,9 @@ class GlobalConfig {
   int SAT_phaseSaving;
   int SAT_restartFirst;
   int SAT_ccMinMode;
+
+  int MIP_exportModel;
+  std::string MIP_modelFile;
 
   void printHelp(std::ostream & out);
   void parseArgs(int argc, const char** argv, std::ostream & out);

@@ -36,7 +36,7 @@ void CPLEXSolver::addVariable(int var) {
   log(2, "c MIP variable %d\n", var);
   char name[11];
   snprintf(name, 11, "%10d", var);
-  IloNumVar x(*env, 0.0, 1.0, ILOBOOL, name);
+  IloNumVar x(*env, 0, 1, ILOBOOL, name);
   var_to_IloVar[var] = x;
   vars.add(x);
   nVars++;
@@ -47,7 +47,7 @@ IloNumVar CPLEXSolver::newObjVar(int bVar, double w) {
   char name[11];
   snprintf(name, 11, "%10d", bVar);
 
-  IloNumVar x(*env, 0.0, 1.0, ILOBOOL, name);
+  IloNumVar x(*env, 0, 1, ILOBOOL, name);
   var_to_IloVar[bVar] = x;
   objVars.add(x);
   nObjVars++;
@@ -78,7 +78,8 @@ void CPLEXSolver::addObjectiveVariables(std::unordered_map<int, double> & bvar_w
   double total_w = 0;
 
   for (auto b_w : bvar_weights) {
-    objExpr += b_w.second * newObjVar(b_w.first, b_w.second);
+    if (b_w.second > EPS)
+      objExpr += b_w.second * newObjVar(b_w.first, b_w.second);
     total_w += b_w.second;
   }
 
@@ -87,12 +88,12 @@ void CPLEXSolver::addObjectiveVariables(std::unordered_map<int, double> & bvar_w
   if (total_w >= 10000000000) {
     // turn on extra precision --
     printf("c increase CPLEX abs. tolerances for very high weights\n");
-    //cplex.setParam(IloCplex::EpInt, 0.01);
-    cplex.setParam(IloCplex::EpAGap, 1e-4);
-    cplex.setParam(IloCplex::EpOpt, 1e-4);
-    cplex.setParam(IloCplex::EpRHS, 1e-4);
-    cplex.setParam(IloCplex::EpLin, 1e-4);
-    cplex.setParam(IloCplex::EpMrk, 0.02);
+    cplex.setParam(IloCplex::EpInt, 1e-2);
+    cplex.setParam(IloCplex::EpAGap, 1e-2);
+    cplex.setParam(IloCplex::EpOpt, 1e-2);
+    cplex.setParam(IloCplex::EpRHS, 1e-2);
+    cplex.setParam(IloCplex::EpLin, 1e-2);
+    cplex.setParam(IloCplex::EpMrk, 0.5);
     cplex.setParam(IloCplex::NumericalEmphasis, true);
   }
 }
@@ -240,4 +241,23 @@ bool CPLEXSolver::solveForHS(std::vector<int>& hittingSet, double& weight) {
   weight = cplex.getObjValue();
   solutionExists = true;
   return true;
+}
+
+void CPLEXSolver::exportModel(std::string file) {
+  cplex.exportModel(file.c_str());
+}
+
+void CPLEXSolver::setUpperBound(double ub) {
+  cplex.setParam(IloCplex::CutUp, ub);
+}
+
+void CPLEXSolver::forceVar(int var, bool val) {
+  if (var_to_IloVar.count(var)) {
+    if (val == true) {
+      var_to_IloVar[var].setBounds(1,1);
+    } else {
+      std::cout << var_to_IloVar[var].getLB() << " " << var_to_IloVar[var].getUB() << std::endl;
+      var_to_IloVar[var].setBounds(0,0);
+    }
+  }
 }

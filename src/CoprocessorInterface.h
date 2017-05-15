@@ -1,5 +1,5 @@
-#ifndef MAXSAT_COPROCESSOR_IFACE
-#define MAXSAT_COPROCESSOR_IFACE
+#ifndef LMHS_COPROCESSOR_IFACE
+#define LMHS_COPROCESSOR_IFACE
 
 #include <iosfwd>
 #include <string>

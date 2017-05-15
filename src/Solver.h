@@ -1,5 +1,5 @@
-#ifndef Solver_h
-#define Solver_h
+#ifndef maxsat_solver_h
+#define maxsat_solver_h
 
 #include "ProblemInstance.h"
 #include "Util.h"
@@ -23,6 +23,7 @@ class Solver {
 
   void solve(std::ostream & out);
   void printStats();
+  void printBounds(double lb, double ub);
   void printSolution(std::ostream & out);
   double findSolution(std::vector<int>& out_solution);
 
@@ -30,24 +31,6 @@ class Solver {
 
   double solveAsMIP(std::vector<int>& out_solution);
   double solveMaxHS(std::vector<int>& out_solution);
-  double solveCoreGuidedMaxRes(std::vector<int>& out_solution);
-
-  void partitionWorker(ISATSolver *solver, 
-                       const std::vector<int> &satSofts, 
-                       const std::vector<int> &partSofts, 
-                       const std::vector<int> &hs, 
-                       std::vector<std::vector<int>> &outCores, 
-                       int &status, 
-                       double &weight, unsigned &nonopts);
-
-  double solveParallel_Partition(std::vector<int>& out_solution);
-
-  void randomizedWorker(ISATSolver* solver, 
-                        const std::vector<int>& hs,
-                        std::vector<std::vector<int>>& outCores,
-                        int& status, unsigned &nonopts);
-
-  double solveParallel_Randomized(std::vector<int>& out_solution);
 
   void presolve();
   bool hardClausesSatisfiable();
@@ -60,6 +43,7 @@ class Solver {
 
   std::vector<unsigned> coreSizes;
   std::unordered_map<int, unsigned> coreClauseCounts;
+  std::vector<std::pair<double, int>> sortedWeights;
 
   GlobalConfig &cfg;
   ProblemInstance &instance;

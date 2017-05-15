@@ -29,7 +29,8 @@ void LMHS_reset(void);
  *
  * returns: a struct MaxsatSol containing the found solution and its cost.
  */ 
-MaxsatSol * LMHS_getOptimalSolution(void);
+MaxsatSol * LMHS_getSolution(void);
+
 
 /* Adds constraint to ILP problem disllowing the current 
  * hitting set. Subsequent solutions will satisfy a different
@@ -42,7 +43,7 @@ void LMHS_forbidLastHS(void);
  */
 void LMHS_forbidLastModel(void);
 
-/* Add a known core to the LMHS solver. Core must be a
+/* Add a known core to the MAXSAT solver. Core must be a
  * constraint over true literals of blocking variables only.
  * int n			size of core
  * int *core		contents of core
@@ -72,7 +73,7 @@ int LMHS_initializeWithFile(const char *filepath);
  */
 int LMHS_initializeWithRawData(int n, double top, double *weights, int *clauses);
 
-/* initialize the solvers without LMHS instance.
+/* initialize the solvers without MAXSAT instance.
  * The instance must then be created using the
  * LMHS_getFreeVariable, LMHS_addHardClause, and 
  * LMHS_addSoftClause methods.
@@ -88,13 +89,13 @@ int LMHS_initializeWithoutData(void);
  */
 int LMHS_getNewVariable(void);
 
-/* add a hard clause to the LMHS instance
+/* add a hard clause to the MAXSAT instance
  * int n  			length of clause
  * int *c 			contents of clause
  */
 void LMHS_addHardClause(int n, int *clause);
 
-/* Add a soft clause to the LMHS instance.
+/* Add a soft clause to the MAXSAT instance.
  * double w  		weight of clause
  * int n  			length of clause
  * int *c 			contents of clause

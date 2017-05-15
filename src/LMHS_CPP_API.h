@@ -19,12 +19,12 @@ void reset(void);
 
 /* Get a solution from the solver. Can be called multiple
  * times consecutively. To prevent repeat solutions, call
- * forbidLastSolution or add a custom clause with
- * addHardClause.
+ * forbidLastSolution or add an appropriate hard clause 
+ * with addHardClause.
  *
  * returns: true if solution exists, false otherwise
  */
-bool getOptimalSolution(double & out_weight, std::vector<int> & out_solution);
+bool getSolution(double & out_weight, std::vector<int> & out_solution);
 
 /* Adds constraint to ILP problem disllowing the current
  * hitting set. Subsequent solutions will satisfy a different
@@ -52,18 +52,18 @@ void printStats(void);
  * std::istream & wcnf_in
  *
  * returns: 1 if initialization succeeded
- *			0 otherwise
+ *          0 otherwise
  */
 bool initialize(std::istream & wcnf_in);
 
 /* Initialize with raw clause data.
- * double top 								The weight given to hard clauses
- * std::vector<double> & weights			vector of clause weights
- * std::vector<std::vector<int>> & clauses 	vector of vectors of literals
+ * double top                               The weight given to hard clauses
+ * std::vector<double> & weights            vector of clause weights
+ * std::vector<std::vector<int>> & clauses  vector of vectors of literals
  *
  *
  * returns: 1 if initialization succeeded
- *			0 otherwise
+ *          0 otherwise
  */
 bool initialize(double top, std::vector<double> &weights,
                std::vector<std::vector<int>> &clauses);
@@ -74,7 +74,7 @@ bool initialize(double top, std::vector<double> &weights,
  * addSoftClause methods.
  *
  * returns: 1 if initialization succeeded
- *			0 otherwise
+ *          0 otherwise
  */
 bool initialize(void);
 
@@ -90,7 +90,7 @@ int getNewVariable(void);
 void addHardClause(std::vector<int> &lits);
 
 /* Add a soft clause to the MAXSAT instance.
- * double w  		weight of clause
+ * double w                  weight of clause
  * std::vector<int> lits     vector of literals
  *
  * returns: blocking variable for the created clause

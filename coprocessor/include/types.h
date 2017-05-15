@@ -35,6 +35,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 /// variable type
 typedef uint32_t Var;
 
+/// weight type
+typedef long weight_t;
+
 /// polarity POS, NEG and UNDEF of a literal
 typedef enum {
   POS = 1,

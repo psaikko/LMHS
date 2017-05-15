@@ -87,8 +87,8 @@ class FileParser {
   LIB_VIRTUAL solution_t
       parse_file(std::istream& data_in, std::ostream& err_out,
                  searchData& search, std::vector<CL_REF>* clauses,
-                 std::unordered_map<Var, long>* whiteVars, long& tW,
-                 std::vector<CL_REF>* potential_groups, long& weightRemoved);
+                 std::unordered_map<Var, weight_t>* whiteVars, weight_t& tW,
+                 std::vector<CL_REF>* potential_groups, weight_t& weightRemoved);
 
  protected:
   /** created a clause out of the given literals

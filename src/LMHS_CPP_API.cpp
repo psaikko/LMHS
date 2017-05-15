@@ -72,7 +72,7 @@ void addCoreConstraint(vector<int>& core) {
   solver->processCore(core);
 }
 
-bool getOptimalSolution(double & out_weight, vector<int> & out_solution) {
+bool getSolution(double & out_weight, vector<int> & out_solution) {
   out_weight = -1;
   out_solution.clear();
   if (solver->hardClausesSatisfiable()) {

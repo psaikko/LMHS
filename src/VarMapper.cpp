@@ -45,7 +45,7 @@ void VarMapper::map(istream & in, ostream & out) {
 				partial = true;
 			}
 			out << endl;
-			//cout << "c top " << top << endl;
+			cout << "c top " << top << endl;
 		} else if (c == 'c') {
 			getline(in, line);
 		} else if (isdigit(c) || (!weighted && c == '-')) {

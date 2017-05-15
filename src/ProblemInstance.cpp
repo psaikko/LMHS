@@ -283,10 +283,11 @@ void ProblemInstance::printStats() {
   if (!sat_solver) return;
 
   log(1, "c Instance:\n");
-  log(1, "c   variables (final): %d\n", sat_solver->nVars());
-  log(1, "c   clauses (final):   %lu\n", clauses.size());
-  log(1, "c   hard clauses:      %lu\n", hard_clauses.size());
-  log(1, "c   soft clauses:      %lu\n", soft_clauses.size());
+  log(1, "c   aux variables:  %lu\n", bvar_weights.size());
+  log(1, "c   orig variables: %d\n", sat_solver->nVars());
+  log(1, "c   clauses:        %lu\n", clauses.size());
+  log(1, "c   hard clauses:   %lu\n", hard_clauses.size());
+  log(1, "c   soft clauses:   %lu\n", soft_clauses.size());
 }
 
 void ProblemInstance::getSolution(std::vector<int>& out_solution) {
@@ -327,66 +328,93 @@ void ProblemInstance::getBvarEquivConstraints(
 
   unordered_map<int, int> eqs;
 
-  for (auto& p : bvar_soft_clauses) {
-    int bvar = p.first;
-    eqs[bvar] = bvar;
-    if (p.second.size() == 1) {
-      vector<int>& sc = *(p.second[0]);
-      if (sc.size() == 1 && bvar_weights.count(abs(sc[0])) == 0) {
-        // For finding an optimal solution, the b-variable of a unit clause
-        // is equivalent to the negation of that clause's literal
-        int l = sc[0];
-        int v = abs(l);
-        int s = l < 0 ? 1 : -1;
-        eqs[v] = bvar * s;
+  if (cfg.doFindBvarClauses) {
+    for (auto& p : bvar_soft_clauses) {
+      int bvar = p.first;
+      eqs[bvar] = bvar;
+      if (p.second.size() == 1) {
+        vector<int>& sc = *(p.second[0]);
+        if (sc.size() == 1 && bvar_weights.count(abs(sc[0])) == 0) {
+          // For finding an optimal solution, the b-variable of a unit clause
+          // is equivalent to the negation of that clause's literal
+          int l = sc[0];
+          int v = abs(l);
+          int s = l < 0 ? 1 : -1;
+          eqs[v] = bvar * s;
+        }
       }
     }
-  }
 
-  for (auto cl : clauses) {
-    vector<int> constr;
+    for (auto cl : clauses) {
+      vector<int> constr;
 
-    for (int l : *cl) {
-      if (eqs.count(abs(l)) == 0) goto bv_eq_next_clause;
-      int s = l < 0 ? -1 : 1;
-      constr.push_back(eqs[abs(l)] * s);
+      for (int l : *cl) {
+        if (eqs.count(abs(l)) == 0) goto bv_eq_next_clause;
+        int s = l < 0 ? -1 : 1;
+        constr.push_back(eqs[abs(l)] * s);
+      }
+
+      if (constr.size() == 2 && constr[0] == -constr[1]) goto bv_eq_next_clause;
+
+      out_constraints.push_back(constr);
+
+    bv_eq_next_clause:
+      continue;
     }
 
-    if (constr.size() == 2 && constr[0] == -constr[1]) goto bv_eq_next_clause;
-
-    out_constraints.push_back(constr);
-
-  bv_eq_next_clause:
-    continue;
-  }
-}
-
-void ProblemInstance::getBvarHyperedges(vector<vector<int>>& out_hyperedges,
-                                        vector<int>& out_vertices) {
-  condTerminate(
-      cfg.isLCNF, 1,
-      "Error: getBvarHyperedges not functional with lcnf mode\n");  // TODO; fix
-                                                                    // this
-
-  out_vertices.clear();
-  out_hyperedges.clear();
-  unordered_map<int, vector<int>> hedges;
-  unordered_map<int, int> hverts;
-
-  int vi = 1;
-  for (auto p : bvar_soft_clauses) {
-    int bvar = p.first;
-    vector<int> sc = *(p.second[0]);
-    for (int l : sc) {
-      int v = abs(l);
-      if (hedges.find(v) == hedges.end()) hedges[v] = vector<int>();
-      hedges[v].push_back(vi);
+  } else {
+    for (auto p : bvar_soft_clauses) {
+      int bvar = p.first;
+      if (p.second.size() == 1) {
+        vector<int> sc = *p.second[0];
+        if (sc.size() == 1) {
+          int l = sc[0];
+          int v = abs(l);
+          int s = l < 0 ? 1 : -1;
+          eqs[v] = bvar * s;
+        }
+      }
     }
-    out_vertices.push_back(bvar);
-    ++vi;
-  }
 
-  for (auto entry : hedges) out_hyperedges.push_back(entry.second);
+    for (auto hc : hard_clauses) {
+      if (hc->size() > 1) {
+        for (int l : *hc) {
+          if (eqs.count(abs(l)) == 0) goto bv_eq_next_hardclause;
+        }
+        vector<int> new_constraint;
+        for (int l : *hc) {
+          int s = l < 0 ? -1 : 1;
+          new_constraint.push_back(eqs[abs(l)] * s);
+        }
+        out_constraints.push_back(new_constraint);
+      }
+    bv_eq_next_hardclause:
+      continue;
+    }
+
+    for (auto p : bvar_soft_clauses) {
+      int bvar = p.first;
+      if (p.second.size() == 1) {
+        for (auto sc : p.second) {
+          if (sc->size() > 1) {
+            for (int l : *sc) {
+              if (eqs.count(abs(l)) == 0) goto bv_eq_next_softclause;
+            }
+
+            vector<int> new_constraint;
+            new_constraint.push_back(bvar);
+            for (int l : *sc) {
+              int s = l < 0 ? -1 : 1;
+              new_constraint.push_back(eqs[abs(l)] * s);
+            }
+            out_constraints.push_back(new_constraint);
+          }
+        }
+      }
+    bv_eq_next_softclause:
+      continue;
+    }
+  }
 }
 
 void ProblemInstance::getLabelOnlyClauses(

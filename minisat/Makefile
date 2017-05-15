@@ -13,7 +13,7 @@ all:	r lr lsh
 # Directory to store object files, libraries, executables, and dependencies:
 BUILD_DIR      ?= build
 
-MINISAT_CXX = g++-4.8
+MINISAT_CXX = g++
 
 # Include debug-symbols in release builds
 MINISAT_RELSYM ?= -g
