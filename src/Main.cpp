@@ -1,8 +1,9 @@
 #include "GlobalConfig.h"
 #include "Solver.h"
-#include "CoprocessorInterface.h"
 #include "Util.h"
 #include "VarMapper.h"
+#include "Timer.h"
+
 #include <stdlib.h>
 #include <signal.h>
 #include <stdio.h>
@@ -15,29 +16,50 @@
 using namespace std;
 
 Solver * maxsat_solver;
+VarMapper * varmap;
 
 void stop(int) {
   printf("s UNKNOWN\n");
-  fflush(stdout);
   if (maxsat_solver) maxsat_solver->printStats();
+  fflush(stdout);
   _Exit(1);
+}
+
+void stop_incomplete(int) {
+  if (maxsat_solver && varmap) {
+
+    stringstream internal_model;
+    internal_model << setprecision(GlobalConfig::get().streamPrecision);
+    maxsat_solver->instance.printSolution(internal_model);
+
+    varmap->unmap(internal_model, cout);
+
+    fflush(stdout);
+    maxsat_solver->printStats();
+    fflush(stdout);
+  }
+  _Exit(1); 
 }
 
 int main(int argc, const char* argv[]) {
 
-  clock_t begin = clock();
+  Timer main_timer;
+  main_timer.start();
 
   condTerminate(argc == 1, 1, "Error: need filepath.\n");
 
-  signal(SIGINT, stop);
-  signal(SIGTERM, stop);
-  signal(SIGXCPU, stop);
-
   GlobalConfig & cfg = GlobalConfig::get();
+  
   cfg.parseArgs(argc, argv, cout);
 
+  signal(SIGINT, stop);
+  if (cfg.incomplete)
+    signal(SIGTERM, stop_incomplete);
+  else
+    signal(SIGTERM, stop);
+  signal(SIGXCPU, stop);
+
   cout << setprecision(cfg.streamPrecision);
-  cerr << setprecision(cfg.streamPrecision);
 
   log(1, "c argv");
   for (int i = 0; i < argc; ++i)
@@ -51,75 +73,39 @@ int main(int argc, const char* argv[]) {
   log(1, "c git commit date " GITDATE "\n");
 #endif
 
-  CoprocessorInterface ci;
   ifstream file(argv[1]);
-  stringstream pre;
-
-  VarMapper vm;
-
-  if (cfg.use_coprocessor) {
-    stringstream mapped;
-    mapped << setprecision(cfg.streamPrecision);
-    pre << setprecision(cfg.streamPrecision);
-
-    vm.map(file, mapped);
-
-    if (!vm.partial)  {
-      // TODO coprocessor use broken if no hard clauses
-      pre.str(mapped.str());
-    } else {
-      int ci_status = ci.CP_preprocess(mapped, pre);
-      if (ci_status == CI_UNSAT) {
-        log(0, "s UNSATISFIABLE\n");
-        log(0, "c CPU time: %.2f seconds\n", SECONDS(clock() - begin));
-        return 0;
-      } else if (ci_status == CI_SAT) {
-        stringstream model;
-        model << setprecision(cfg.streamPrecision);
-        ci.CP_completeModel(pre, model);
-        vm.unmap(model, cout);
-        return 0;
-      } else if (ci_status == CI_ERR) {
-        log(0, "s UNKNOWN\n");
-        return 0;
-      } // else ci_status == CI_UNKNOWN
-    }
+  
+  if (file.fail()) {
+    printf("Could not open file %s\n", argv[1]);
+    exit(1);
   }
 
-  if (cfg.use_coprocessor && cfg.pre_only) {
-    cout << pre.str();
-    return 0;
-  }
+  varmap = new VarMapper();
+  stringstream mapped;
+  mapped << setprecision(cfg.streamPrecision);
+  varmap->map(file, mapped);
 
-  istream & wcnf_in = cfg.use_coprocessor ? (istream &)pre : (istream &)file;
+  ProblemInstance instance(mapped, cout);
 
-  ProblemInstance instance(wcnf_in);
   instance.filename = string(argv[1]);
 
-  maxsat_solver = new Solver(instance);
+  maxsat_solver = new Solver(instance, cout);
 
   file.close();
 
-  maxsat_solver->solve(cout);
-  if (cfg.use_coprocessor) {
+  maxsat_solver->solve();
 
-    stringstream pre_model, model;
-    pre_model << setprecision(cfg.streamPrecision);
-    model << setprecision(cfg.streamPrecision);
+  stringstream internal_model;
+  internal_model << setprecision(cfg.streamPrecision);
+  instance.printSolution(internal_model);
 
-    maxsat_solver->printSolution(pre_model);
-    if (vm.partial) {
-      ci.CP_completeModel(pre_model, model);
-      vm.unmap(model, cout);
-    } else {
-      vm.unmap(pre_model, cout);
-    }
-  } else {
-    maxsat_solver->printSolution(cout);
-  }
+  varmap->unmap(internal_model, cout);
   
-  maxsat_solver->printStats();
-
-  log(1, "c CPU time: %.2f seconds\n", SECONDS(clock() - begin));
+  if (cfg.printStats) {
+    maxsat_solver->printStats();
+  }
+  main_timer.stop();
+  log(0, "c CPU time: %lu ms\n", main_timer.cpu_ms_total());
+  log(0, "c Real time: %lu ms\n", main_timer.real_ms_total());
   return 0;
 }

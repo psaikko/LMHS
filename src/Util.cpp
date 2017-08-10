@@ -1,6 +1,11 @@
+#include <algorithm> // count
+
 #include "Util.h"
 #include "GlobalConfig.h"
-#include <algorithm> // count
+#include <iostream>
+
+using namespace std;
+
 
 bool string_contains(const std::string & a, const std::string & b) {
   return (a.find(b) != std::string::npos);
@@ -56,16 +61,7 @@ void terminate(const int code, const char * fmt, ...) {
 
 void logCore(const int level, std::vector<int> & core) {
   if (level > GlobalConfig::get().verbosity) return;
-  printf("c core");
-  for (int i : core) printf(" %d", i);
-  printf("\n");
-}
-
-void logHS(const int level, std::vector<int> & hs, bool optimal) {
-  if (level > GlobalConfig::get().verbosity) return;
-  printf("c %s hs", optimal ? "opt" : "nonopt");
-  for (int i : hs) printf(" %d", i);
-  printf("\n");
+  cout << "c " << core << endl;
 }
 
 void condTerminate(const bool cond, const int code, const char * fmt, ...) {

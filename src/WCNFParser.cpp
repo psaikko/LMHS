@@ -1,13 +1,17 @@
 // adapted from minisat dimacs.h
-#include "WCNFParser.h"
-#include "Util.h"
-#include "GlobalConfig.h"
-
 #include <algorithm>
 #include <istream>
 #include <ostream>
+#include <iostream>
 #include <string>
 #include <sstream>
+#include <cassert>
+#include <unordered_set>
+
+#include "WCNFParser.h"
+#include "Util.h"
+#include "GlobalConfig.h"
+#include "Weights.h"
 
 using namespace std;
 
@@ -46,36 +50,42 @@ void scanNext(istream & in) {
   }
 }
 
-void readClause(istream & in, double& out_w, vector<int>& out_lits, bool& is_float) {
+void readClause(istream & in, weight_t& out_w, vector<int>& out_lits, int& n_vars, unordered_set<int>& prob_vars) {
   int parsed_lit;
 
   if (weighted) {
     if (!(in >> out_w)) {
       terminate(1, "WCNF parse error - bad clause weight\n");
     }
-    if (out_w != round(out_w)) is_float = true;
   } else {
-    out_w = 1.0;
+    out_w = 1;
   }
 
+  int lits = 0;
   for (;;) {
     in >> parsed_lit;
-    if (parsed_lit == 0) break;
+    if (parsed_lit == 0) {
+      assert(lits);
+      break;
+    }
+    prob_vars.insert(abs(parsed_lit));
+    ++lits;
+    n_vars = max(abs(parsed_lit), n_vars);
     out_lits.push_back(parsed_lit);
   }
 }
 
-void parseWCNF(istream & wcnf_in, vector<double>& out_weights,
-               vector<int>& out_branchVars, double& out_top,
-               vector<vector<int> >& out_clauses, vector<int>& file_assumptions) {
-  GlobalConfig& cfg = GlobalConfig::get();
+void parseWCNF(istream & wcnf_in, vector<weight_t>& out_weights,
+               vector<int>& out_branchVars, weight_t& out_top,
+               vector<vector<int> >& out_clauses, 
+               vector<int>& file_assumptions, int& n_vars) {
+  unsigned n_clauses = 0, cnt = 0, soft_ct = 0, hard_ct = 0;
 
-  unsigned n_vars = 0, n_clauses = 0, cnt = 0, soft_ct = 0, hard_ct = 0;
-
-  double w = 0;
+  weight_t w = 0;
 
   bool p_line_parsed = false;
-  bool has_float_weights = false;
+
+  unordered_set<int> parsed_vars;
 
   for (;;) {
     skipWhitespace(wcnf_in);
@@ -93,9 +103,9 @@ void parseWCNF(istream & wcnf_in, vector<double>& out_weights,
           pline >> type >> n_vars >> n_clauses;
           weighted = (type == "wcnf");
           if (weighted) {
-            if (!(pline >> out_top)) out_top = FLT_MAX;
+            if (!(pline >> out_top)) out_top = WEIGHT_MAX;
           } else if (type == "cnf") {
-            out_top = FLT_MAX;
+            out_top = WEIGHT_MAX;
           } else {
             terminate(1, "WCNF parse error - unexpected 'p' line:\n%s\n", line.c_str());
           }
@@ -136,16 +146,21 @@ void parseWCNF(istream & wcnf_in, vector<double>& out_weights,
             terminate(1, "WCNF parse error - clause read attempt before 'p' line\n");
           cnt++;
           out_clauses.push_back(vector<int>());
-          readClause(wcnf_in, w, out_clauses.back(), has_float_weights);
+          readClause(wcnf_in, w, out_clauses.back(), n_vars, parsed_vars);
 
-          if (w == out_top) ++hard_ct;
-          else              ++soft_ct;
+          if (w != 0) {
+            // skip all 0-weight clauses
+            if (w == out_top) ++hard_ct;
+            else              ++soft_ct;
 
-          out_weights.push_back(w);
+            out_weights.push_back(w);
+          } else {
+            out_clauses.pop_back();
+          }
         }
       }
     }
   }
 
-  if (has_float_weights) cfg.floatWeights = true;
+  printf("c Parsed %lu vars\n", parsed_vars.size());
 }

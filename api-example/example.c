@@ -1,10 +1,11 @@
 #include "LMHS_C_API.h"
+#include <stdlib.h>
 #include <stdio.h>
 
 void printSolution(MaxsatSol * sol) {
 	if (sol->size > 0) {
 		int i;
-		printf("c solution weight: %.2f\nv ", sol->weight);
+		printf("c solution weight: %" WGT_FMT "\nv ", sol->weight);
 		for (i = 0; i < sol->size; ++i) {
 			int val = sol->values[i];
 			printf("%d ", val);
@@ -41,7 +42,7 @@ int main(int argc, char **argv) {
 	// Adding clauses one by one instead to cover more API features.
 	//
 	int clauses[10000];
-	double weights[1000];
+	weight_t weights[1000];
 	int ci = 0, wi = 0;
 
 	//LMHS_initializeWithoutData();
@@ -59,7 +60,7 @@ int main(int argc, char **argv) {
 			sscanf(line, "%d%n", &weight, &t);
 			i = t;
 
-			weights[wi++] = (double)weight;
+			weights[wi++] = (weight_t)weight;
 
 			while(1) {
 				int lit, var;
@@ -83,23 +84,6 @@ int main(int argc, char **argv) {
 	//
 	solution = LMHS_getSolution();
 	printSolution(solution);
-
-	//
-	// Incrementally find additional solutions
-	//
-	while (solution->size > 0) {
-		//
-		// Adds a constraint blocking the current set of unsatisfied soft clauses
-		//
-		LMHS_forbidLastHS();
-
-		//
-		// LMHS_addSoftClause and LMHS_addHardClause can also be called between 
-		// successive calls to LMHS_getSolution here.
-		//
-		solution = LMHS_getSolution();
-		printSolution(solution);
-	}
 
 	LMHS_reset();
 

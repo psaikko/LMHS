@@ -1,7 +1,8 @@
+#include <algorithm>  // std::sort, std::reverse, std::count
+#include <cmath>
+
 #include "NonoptHS.h"
 #include "Util.h"
-#include <algorithm>  // std::sort, std::reverse, std::count
-#include <float.h>    // DBL_MAX
 
 using namespace std;
 
@@ -9,6 +10,8 @@ namespace NonoptHS {
 
 void _frac(double f, vector<int>& out_hs, const vector<vector<int>>& new_cores,
           const unordered_map<int, unsigned>& coreClauseCounts) {
+  log(2, "NonoptHS: frac\n");
+
   for (auto core : new_cores) {
     vector<pair<int, int>> cts_vars;
     unsigned take = (int)ceil(core.size() * f);
@@ -30,6 +33,8 @@ void _frac(double f, vector<int>& out_hs, const vector<vector<int>>& new_cores,
 }
 
 void _disjoint(vector<int>& out_hs, const vector<vector<int>>& new_cores) {
+  log(2, "NonoptHS: disjoint\n");
+
   for (auto core : new_cores)
     for (int v : core)
       if (!count(out_hs.begin(), out_hs.end(), v)) out_hs.push_back(v);
@@ -37,6 +42,8 @@ void _disjoint(vector<int>& out_hs, const vector<vector<int>>& new_cores) {
 
 void _common(vector<int>& out_hs, const vector<vector<int>>& new_cores,
             const unordered_map<int, unsigned>& coreClauseCounts) {
+  log(2, "NonoptHS: common\n");
+
   for (auto core : new_cores) {
     int maxVar = -1;
     unsigned maxCount = 0;
@@ -62,12 +69,13 @@ void _common(vector<int>& out_hs, const vector<vector<int>>& new_cores,
 // Greedy algorithm for minimum cost hitting set.
 //
 void _greedy(vector<int>& out_hs, const vector<vector<int>>& cores,
-            const unordered_map<int, double>& weights,
+            const unordered_map<int, weight_t>& weights,
             const unordered_map<int, unsigned>& coreClauseCounts) {
+  log(2, "NonoptHS: greedy\n");
 
   // keep track of the number of occurrences of each variable in the cores
   // and also the variable weight, to reduce lookups
-  unordered_map<int, pair<int, double>> var_count_weight;
+  unordered_map<int, pair<int, weight_t>> var_count_weight;
 
   // remember which cores each variable occurs in
   unordered_map<int, vector<int>> var_cores;
@@ -90,21 +98,22 @@ void _greedy(vector<int>& out_hs, const vector<vector<int>>& cores,
   vector<bool> hit(cores.size(), false);
 
   unsigned unhits = cores.size();
-  double weight = 0;
+  weight_t weight = 0;
 
   // repeat until all cores are hit
   while (unhits) {
 
     // find the variable v with lowest (weight / #occurrences)
     int v = -1;
-    double o = DBL_MAX;
-    double w = DBL_MAX;
+    double o = std::numeric_limits<double>::max();
+    weight_t w = WEIGHT_MAX;
 
     for (auto& e : var_count_weight) {
       int count = e.second.first;
-      double wt = e.second.second;
-      if (wt / count < o) {
-        o = wt / count;
+      weight_t wt = e.second.second;
+      double _o = ((double)wt / (double)count);
+      if (count != 0 && _o < o) {
+        o = _o;
         w = wt;
         v = e.first;
       }
@@ -134,13 +143,13 @@ void _greedy(vector<int>& out_hs, const vector<vector<int>>& cores,
     out_hs.push_back(v);
   }
 
-  log(2, "c found greedy hs with cost %.2f\n", weight);
+  log(2, "c found greedy hs with cost %" WGT_FMT "\n", weight);
 }
 
 void common(vector<int>& out_hs, 
            const vector<vector<int>>& new_cores,
            const vector<vector<int>>&,
-           const unordered_map<int, double>&,
+           const unordered_map<int, weight_t>&,
            const unordered_map<int, unsigned>& coreClauseCounts) {
   _common(out_hs, new_cores, coreClauseCounts);
 }
@@ -148,14 +157,14 @@ void common(vector<int>& out_hs,
 void greedy(vector<int>& out_hs, 
            const vector<vector<int>>&,
            const vector<vector<int>>& cores,
-           const unordered_map<int, double>& weights,
+           const unordered_map<int, weight_t>& weights,
            const unordered_map<int, unsigned>& coreClauseCounts) {
   _greedy(out_hs, cores, weights, coreClauseCounts);
 }
 
-funcType frac(double fracSize) {
+NonOptHSFunc frac(double fracSize) {
   return [&](vector<int>& out_hs, const vector<vector<int>>& new_cores,
-             const vector<vector<int>>&, const unordered_map<int, double>&,
+             const vector<vector<int>>&, const unordered_map<int, weight_t>&,
              const unordered_map<int, unsigned>& coreClauseCounts) {
     _frac(fracSize, out_hs, new_cores, coreClauseCounts);
   };
@@ -164,7 +173,7 @@ funcType frac(double fracSize) {
 void disjoint(vector<int>& out_hs, 
            const vector<vector<int>>& new_cores,
            const vector<vector<int>>&,
-           const unordered_map<int, double>&,
+           const unordered_map<int, weight_t>&,
            const unordered_map<int, unsigned>&) {
   _disjoint(out_hs, new_cores);
 }

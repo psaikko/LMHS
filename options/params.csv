@@ -1,0 +1,93 @@
+parameter name,variable name,variable type,default value,valid values,value_regex,range start,range end,incl start,incl end,description
+,,,,,,,,,,
+:Core minimizations,,,,,,,,,,
+minimize,doMinimizeCores,bool,TRUE,,,,,,,Minimize found cores
+limit-minimize,minimizeLimit,int,INT_MAX,,,2,INT_MAX,x,x,Only attempt to minimize cores smaller than this
+min-prop-limit,minimizePropLimit,int,0,,,0,INT_MAX,x,x,Propagation limit for minimization calls (0 = no limit)
+min-conf-limit,minimizeConfLimit,int,0,,,0,INT_MAX,x,x,Conflict limit for minimization calls (0 = no limit)
+minimize-algorithm,minimizeAlgorithmStr,std::string,"""destructive""","""destructive"",""constructive"",""binarysearch"",""cardinality"",""rerefute""",,,,,,Core minimization algorithm
+separate-muser,separate_muser,bool,TRUE,,,,,,,Use a separate instance of Minisat to minimize cores
+rerefute,doRerefuteCores,bool,TRUE,,,,,,,Re-refute found cores (subsumed by minimization)
+,,,,,,,,,,
+:Non-optimal hitting sets,,,,,,,,,,
+nonopt,nonOptType,std::string,"""disjoint+greedy""","""none"",""disjoint"",""common"",""frac"",""greedy"",""disjoint+greedy"",""common+greedy"",""frac+greedy""",,,,,,"Strategy to use for minimum cost hitting set approximations
+common: add the variable with the most occurrences in cores so far
+frac: like common but add some fraction of the most occurring variables to the hitting set
+disjoint: add entire core to hitting set. Finds disjoint set of cores between optimal hitting sets (equivalent to --nonopt frac --frac-size 1.0)
+[strategy]+greedy: use greedy algorithm as fallback for another strategy"
+lp-nonopt,lpNonOpt,bool,FALSE,,,,,,,Use LP relaxation of MCHS IP for non-optimal hitting sets
+limit-nonopt,nonoptLimit,int,INT_MAX,,,1,INT_MAX,x,x,Limit for cores found in non-optimal phase
+frac-size,fracSize,double,0.1,,,0,1,,x,"When using ""--nonopt frac"", the fraction of a new core to add to the hitting set"
+,,,,,,,,,,
+:Preprocessing & Label-MaxSAT,,,,,,,,,,
+preprocess,preprocess,bool,TRUE,,,,,,,Enable SAT-based preprocessing with MaxPre
+pre-only,pre_only,bool,FALSE,,,,,,,Only output the preprocessed formula (do not solve)
+pre-techniques,pre_techniques,std::string,"""[bu]#[buvsrgc]""",,,,,,,Preprocessing techniques to use (See MaxPre documentation)
+infile-assumptions,inFileAssumptions,bool,FALSE,,,,,,,"LCNF: get assumption variables and polarities from ""c assumptions ..."" line in input"
+,,,,,,,,,,
+:Solution enumeration,,,,,,,,,,
+enumerate,doEnumeration,bool,FALSE,,,,,,,Incrementally enumerate multiple MaxSAT solutions
+enum-type,enumerationType,int,1,"1,2,-1,-2",,,,,,"1: only enumerate optimal solutions
+2: also report best sub-optimal solutions
+-1, -2: same as above, but enumerate only solutions with unique sets of satisfied clauses"
+enum-limit,enumerationLimit,int,INT_MAX,,,1,INT_MAX,x,x,Maximum number of solutions to enumerate
+,,,,,,,,,,
+:CPLEX parameters,,,,,,,,,,
+mip-threads,MIP_threads,int,1,,,0,INT_MAX,x,x ,CPLEX Threads
+mip-intensity,MIP_intensity,int,2,,,0,4,x,x,CPLEX SolnPoolIntensity
+mip-replace,MIP_replace,int,2,,,0,2,x,x,CPLEX SolnPoolReplace
+mip-capacity,MIP_capacity,int,10,,,0,INT_MAX,x,x,CPLEX SolnPoolCapacity
+mip-poplim,MIP_poplim,int,100,,,0,INT_MAX,x,x,CPLEX PopulateLim
+mip-start,MIP_start,int,2,,,0,2,x,x,CPLEX AdvInd
+mip-emph,MIP_emph,int,0,,,0,4,x,x,CPLEX MIPEmphasis
+mip-export-model,MIP_modelFile,std::string,"""""",,""":.*\.(?:(?:lp)|(?:sav)|(?:mps))$""",,,,,The .lp .sav or .mps filename to writeIP model to
+,,,,,,,,,,
+:Minisat parameters,,,,,,,,,,
+sat-polarity,SAT_userPolarity,int,0,"-1,0,1",,,,,,"Set the Minisat variable polarity to control branching (-1=false, 0=undefined, 1=true)"
+sat-var-decay,SAT_varDecay,double,0.95,,,0,1,,,Minisat: Variable activity decay factor
+sat-cla-decay,SAT_clauseDecay,double,0.999,,,0,1,,,Minisat: Clause activity decay factor
+sat-rnd-freq,SAT_rndFreq,double,0,,,0,1,x,x,Minisat: The frequency with which the decision heuristic tries to choose a random variable
+sat-rnd-seed,SAT_rndSeed,double,91648253,,,0,DBL_MAX,x,,Minisat: Pseudorandom generator seed value
+sat-gc-frac,SAT_gcFrac,double,0.2,,,0,DBL_MAX,,,Minisat: The fraction of wasted memory allowed before a garbage collection is triggered
+sat-cc-min-mode,SAT_ccMinMode,int,2,"0,1,2",,,,,,"Minisat: Controls conflict clause minimization in (0=none, 1=basic, 2=deep)"
+sat-phase-saving,SAT_phaseSaving,int,2,"0,1,2",,,,,,"Minisat: Controls the level of phase saving in (0=none, 1=limited, 2=full)"
+sat-rnd-init-act,SAT_rndInitActivity,bool,FALSE,,,,,,,Minisat: Randomize initial activity
+sat-luby,SAT_lubyRestart,bool,TRUE,,,,,,,Minisat: Use the Luby restart sequence
+sat-restart-first,SAT_restartFirst,int,100,,,1,INT_MAX,x,x,Minisat: The base restart interval
+sat-restart-inc,SAT_restartInc,double,2,,,1,DBL_MAX,x,,Minisat: Restart interval increase factor
+sat-learntsize-factor,SAT_learntSizeFactor,double,0.33333,,,0,100,,x,Minisat: Limit on number of learnt clauses as a fraction of original clauses
+sat-learntsize-inc,SAT_learntSizeInc,double,1.1,,,0,100,,x,Minisat: Rate at which learntsize-factor increases between restarts
+,,,,,,,,,,
+:Assumption shuffle,,,,,,,,,,
+shuffle,do_shuffle,bool,TRUE,,,,,,,Re-run Minisat's analyzeFinal with shuffled assumption orderings to find different cores
+limit-shuffle,n_shuffles,int,19,,,1,INT_MAX,x,x,Number of shuffled orderings to try
+shuffle-disjoint,shuffle_disjoint,bool,TRUE,,,,,,,Only get a disjoint set of cores from shuffle
+shuffle-core-limit,shuffle_coreLimit,int,INT_MAX,,,1,INT_MAX,x,x,Limit number of cores found per SAT call
+,,,,,,,,,,
+:CPLEX callbacks,,,,,,,,,,
+cplex-lb-cutoff,CPLEX_lb_cutoff,bool,TRUE,,,,,,,Cutoff CPLEX at previous LB
+cplex-ub-cutoff,CPLEX_ub_cutoff,bool,FALSE,,,,,,,Cutoff CPLEX when UB is improved if no new cores were found
+cplex-reducedcosts,CPLEX_reducedCosts,bool,TRUE,,,,,,,Use reduced costs to harden or relax variables in IP.
+,,,,,,,,,,
+:Presolve,,,,,,,,,,
+disjoint-pre,doDisjointPhase,bool,TRUE,,,,,,,Find disjoint set of cores before main IHS loop
+equiv-seed,doEquivSeed,bool ,TRUE,,,,,,,Seed CPLEX with blocking variable equivalences
+,,,,,,,,,,
+:Misc,,,,,,,,,,
+ip,solveAsMIP,bool,FALSE,,,,,,,Solve the instance using CPLEX and a standard IP encoding of MaxSAT 
+reset,doResetClauses,bool,FALSE,,,,,,,Clear learnt clauses between refutations and re-refutations
+invert,doInvertActivity,bool,TRUE,,,,,,,Invert variable activity between refutations and re-refutations
+random-seed,randomSeed,int,9,,,0,INT_MAX,x,x,Seeds random number generator for LMHS
+incomplete,incomplete,bool,FALSE,,,,,,,Print best found solution on SIGTERM
+,,,,,,,,,,
+:Debug and output,,,,,,,,,,
+help,help,bool,FALSE,,,,,,,Print help text
+print-cores,printCores,bool,FALSE,,,,,,,Print each found core
+print-stats,printStats,bool,TRUE,,,,,,,Print stats after solving
+print-hs,printHittingSets,int,0,"0,1,2",,,,,,Print hitting sets (0=none 1=optimal 2=all)
+print-solutions,printSolutions,bool,FALSE,,,,,,,Print a solution each time the upper bound is improved
+print-bounds,printBounds,bool,TRUE,,,,,,,Print upper and lower bounds when they are improved
+stream-precision,streamPrecision,int,15,,,1,INT_MAX,x,x,Sets output stream precision for floating-point values
+verb,verbosity,int,1,,,0,3,x,x,Set LMHS verbosity level
+sat-verb,SAT_verbosity,int,0,,,0,3,x,x,Set Minisat verbosity level
+mip-verb,MIP_verbosity,int,0,,,0,2,x,x,Set CPLEX verbosity level

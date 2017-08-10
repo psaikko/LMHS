@@ -1,6 +1,3 @@
-#include "VarMapper.h"
-#include "GlobalConfig.h"
-
 #include <string> 
 #include <istream>
 #include <ostream>
@@ -10,10 +7,12 @@
 #include <vector>
 #include <algorithm> // sort
 #include <ctime>
-#include <cfloat> // DBL_MAX
 #include <iomanip> // setprecision
-
 #include <iostream>
+
+#include "VarMapper.h"
+#include "GlobalConfig.h"
+#include "Weights.h"
 
 using namespace std;
 
@@ -21,7 +20,7 @@ void VarMapper::map(istream & in, ostream & out) {
 
 	string line;
 	long var_max = 0;
-	double top = DBL_MAX;
+	weight_t top = WEIGHT_MAX;
 
 	while (in.peek() != EOF) {
 		int c;
@@ -31,11 +30,11 @@ void VarMapper::map(istream & in, ostream & out) {
 			getline(in, line);
 			linein.str(line);
 			string type;
-			long vars, clauses;
+			
 			linein >> type >> type;
-			linein >> vars >> clauses;
+			linein >> n_vars >> n_clauses;
 			weighted = (type == "wcnf");
-			out << "p " << "wcnf" << " " << vars << " " << clauses;
+			out << "p " << "wcnf" << " " << n_vars << " " << n_clauses;
 
 			if (!(linein >> top)) {
 				linein.clear();
@@ -49,7 +48,7 @@ void VarMapper::map(istream & in, ostream & out) {
 		} else if (c == 'c') {
 			getline(in, line);
 		} else if (isdigit(c) || (!weighted && c == '-')) {
-			double w;
+			weight_t w;
 			long l;
 			
 			if (weighted) {
@@ -77,6 +76,7 @@ void VarMapper::map(istream & in, ostream & out) {
 		} else {
 			in.clear();
 			getline(in, line);
+			out << line << endl;
 		}
 	}
 }
@@ -104,6 +104,17 @@ void VarMapper::unmap(istream & in, ostream & out) {
 			}
 
 			in.clear();
+
+			sort(model.begin(), model.end(), [] (const long &a, const long &b) { return abs(a) < abs(b); } );
+
+			unsigned j = 0;
+			for (int i = 1; i <= n_vars; ++i) {
+			 	if (j >= model.size() || abs(model[j]) != i) {
+					model.push_back(i);
+				} else if ((j + 1) < model.size())  {
+					++j;
+				}
+			}
 
 			sort(model.begin(), model.end(), [] (const long &a, const long &b) { return abs(a) < abs(b); } );
 
