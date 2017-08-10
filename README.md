@@ -1,8 +1,8 @@
-LMHS MaxSAT Solver
+# LMHS : An implicit hitting set MaxSAT Solver
 
 LMHS uses a hybrid SAT-IP approach to solve MaxSAT problem instances in WCNF format.
-Benchmark instances can be downloaded from the MaxSAT Evaluation websites http://www.maxsat.udl.cat/
-LMHS uses MiniSat as its underlying IP solver and MaxPre as its preprocessor.
+Benchmark instances can be downloaded from the [MaxSAT Evaluation website](http://mse17.cs.helsinki.fi/)
+LMHS uses MiniSat as its underlying SAT solver and MaxPre as its preprocessor.
 
 An IP solver must be separately installed to use LMHS. 
 Currently only IBM CPLEX is supported without modification to the source code. 
@@ -11,19 +11,26 @@ LMHS has been tested with CPLEX 12.7
 
 Run the configure.py script before compiling LMHS to set the necessary IP solver filepaths.
 
-To compile LMHS, run 'make' in this directory. 
-
 To compile release version:
+```
 make clean && make release
+```
 
 To compile debug version:
+```
 make clean && make debug 
+```
 
 To invoke the solver, run
-./bin/LMHS <wcnf filepath> <params>
+```
+./bin/LMHS-int <wcnf filepath> <params>
+```
 
 By default, LMHS uses its 2017 MaxSAT evaluation configuration.
 
-For information on solver parameters, run LMHS with the --help flag.
+For information on solver parameters, run
+```
+./bin/LMHS-int --help
+```
 
 See the api-example directory for LMHS API usage
