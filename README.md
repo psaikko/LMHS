@@ -1,7 +1,8 @@
 # LMHS : A weighted partial MaxSAT Solver
 
 LMHS uses a hybrid SAT-IP implicit hitting set approach to solve MaxSAT problem instances in WCNF format.
-Benchmark instances can be downloaded from the [MaxSAT Evaluation website](http://mse17.cs.helsinki.fi/)
+Benchmark instances can be downloaded from the [MaxSAT Evaluation website](http://mse17.cs.helsinki.fi/).
+
 LMHS uses MiniSat as its underlying SAT solver and MaxPre as its preprocessor.
 
 An IP solver must be separately installed to use LMHS. 
@@ -35,4 +36,4 @@ For information on solver parameters, run
 
 See the api-example directory for LMHS API usage
 
-To support float-weights in the input, make with `FLOAT_WEIGHTS=1`
+To support float-weights in the wcnf input, make with `FLOAT_WEIGHTS=1`
