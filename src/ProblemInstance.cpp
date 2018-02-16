@@ -88,10 +88,26 @@ ProblemInstance::ProblemInstance(istream& wcnf_in, ostream& out)
   vector<int> file_assumptions;
   vector<vector<int>> tmp_clauses;
 
-  parseWCNF(wcnf_in, weights, branchVars, top, tmp_clauses, 
+  parseWCNF(wcnf_in, weights, branchVars, top, tmp_clauses,
             file_assumptions, max_var);
 
-  if (cfg.preprocess) {    
+  // validate cnf weights
+  weight_t weight_sum = 0;
+  for (weight_t w : weights) {
+    if (w != top) {
+      if (numeric_limits<int64_t>::max() - w <= weight_sum) {
+        terminate(1, "Error: Sum of soft weights exceeds max weight\n");
+      } else {
+        weight_sum += w;
+      }
+    }
+  }
+
+  if (top <= weight_sum) {
+    terminate(1, "Error: Sum of soft weights exceeds hard clause (top) weight\n");
+  }
+
+  if (cfg.preprocess) {
     preprocess_timer.start();
 
     vector<vector<int>> preprocessed_clauses;
@@ -262,7 +278,7 @@ void ProblemInstance::toLCNF(ostream& out) {
 
   // header
   long top = numeric_limits<long>::max() / 2;
-  out << "p wcnf " << max_var << " " << (clauses.size() + bvar_weights.size()) << " " << top << endl; 
+  out << "p wcnf " << max_var << " " << (clauses.size() + bvar_weights.size()) << " " << top << endl;
 
   // hard clauses
   for (auto clause : clauses) {
@@ -338,7 +354,7 @@ void ProblemInstance::addHardClause(vector<int>& hc, bool original) {
 
 // add a soft clause to the SAT instance
 int ProblemInstance::addSoftClause(vector<int>& sc, weight_t weight,
-                                   bool original) 
+                                   bool original)
 {
 
   if (weight < EPS) {
@@ -388,13 +404,13 @@ void ProblemInstance::addBvar(int bVar, weight_t weight) {
     muser->addBvarAssumption(bVar);
   }
   if (mip_solver != nullptr) {
-    mip_solver->addObjectiveVariable(bVar, weight);  
+    mip_solver->addObjectiveVariable(bVar, weight);
   }
   bvar_weights[bVar] = weight;
 }
 
 // add a soft clause to the SAT instance with existing bvar(s)
-void ProblemInstance::addSoftClauseWithBv(vector<int>& sc_, bool original) 
+void ProblemInstance::addSoftClauseWithBv(vector<int>& sc_, bool original)
 {
 
   for (unsigned i = 0; i < sc_.size(); i++) {
@@ -512,19 +528,19 @@ void ProblemInstance::getSolution(vector<int>& out_solution, MinisatSolver * sol
       for (auto cl : bvar_soft_clauses[b]) {
         // check if it is satisfied
         for (int lit : *cl) {
-          if ((lit > 0) == model[abs(lit)]) 
+          if ((lit > 0) == model[abs(lit)])
             goto cl_sat;
         }
         // if unsat, we stop and count the cost of the bvar
         goto next_bv;
-        
+
         // if sat, we check the remaining clauses
         cl_sat: continue;
       }
-      // all clauses satisfied, so we change the model 
-      // to disable the bvar and recompute 
+      // all clauses satisfied, so we change the model
+      // to disable the bvar and recompute
       model[abs(b)] = false;
-    }  
+    }
     next_bv: continue;
   }
 
@@ -540,13 +556,13 @@ bool ProblemInstance::bVarSatisfied(vector<bool> & model, int b) {
   for (auto cl : bvar_soft_clauses[b]) {
     // check if it is satisfied
     for (int lit : *cl) {
-      if ((lit > 0) == model[abs(lit)]) 
+      if ((lit > 0) == model[abs(lit)])
         goto cl_sat;
     }
 
     // a clause is unsatisfied
     return false;
-    
+
     // if sat, we check the remaining clauses
     cl_sat: continue;
   }
@@ -555,7 +571,7 @@ bool ProblemInstance::bVarSatisfied(vector<bool> & model, int b) {
 
 weight_t ProblemInstance::tightenModel(vector<bool>& model) {
   weight_t model_cost = 0;
-  
+
   for (auto b_w : bvar_weights) {
     int b = b_w.first;
     weight_t w = b_w.second;
@@ -586,8 +602,8 @@ weight_t ProblemInstance::getSolutionWeight(MinisatSolver * solver) {
 
   weight_t w = tightenModel(model);
 
-  return w;  
-  
+  return w;
+
 }
 
 weight_t ProblemInstance::totalWeight() {
@@ -598,7 +614,7 @@ weight_t ProblemInstance::totalWeight() {
 
 // find equiv constraints in SAT instance with b-variables
 void ProblemInstance::getBvarEquivConstraints(
-    vector<vector<int>>& out_constraints) 
+    vector<vector<int>>& out_constraints)
 {
   unordered_map<int, int> eqs;
 
@@ -612,8 +628,8 @@ void ProblemInstance::getBvarEquivConstraints(
         // For finding an optimal solution, the b-variable of a unit clause
         // is equivalent to the negation of that clause's literal
         int l = sc[0];
-        int v = abs(l); 
-        
+        int v = abs(l);
+
         int s = l < 0 ? 1 : -1;
         eqs[v] = bvar * s;
       }
@@ -638,7 +654,7 @@ void ProblemInstance::getBvarEquivConstraints(
   }
 }
 
-void ProblemInstance::getLabelOnlyClauses(vector<vector<int>>& label_cls) 
+void ProblemInstance::getLabelOnlyClauses(vector<vector<int>>& label_cls)
 {
 
   label_cls.clear();
@@ -683,7 +699,7 @@ void ProblemInstance::reduceCore(vector<int>& core, MinimizeAlgorithm alg) {
 }
 
 
-// 
+//
 void ProblemInstance::constructiveMinimize(MinisatSolver * solver, vector<int>& core) {
   log(3, "c ProblemInstance::constructiveMinimize (size %lu)\n", core.size());
   vector<int> mus;
@@ -711,7 +727,7 @@ void ProblemInstance::constructiveMinimize(MinisatSolver * solver, vector<int>& 
           printf("c UB improved in minimize %lu -> %lu\n", UB, w);
           updateUB(w, solver);
         }
-        // need to add more lits 
+        // need to add more lits
         solver->unsetBvar(lits[i]);
         continue;
       } else { // unsat
@@ -725,7 +741,7 @@ void ProblemInstance::constructiveMinimize(MinisatSolver * solver, vector<int>& 
           for (int l : subcore)
             if (find(mus.begin(), mus.end(), l) == mus.end())
               lits.push_back(l);
-          
+
           if (lits.size() == 0) is_mus = true;
           break;
         }
@@ -759,7 +775,7 @@ void ProblemInstance::binarySearchMinimize(MinisatSolver * solver, vector<int>& 
     while ( start != end ) {
       mid = (start + end) / 2;
       solver->setBvars();
-      for (int l : mus) 
+      for (int l : mus)
         solver->unsetBvar(l);
       for (int i = 0; i <= mid; ++i)
         solver->unsetBvar(lits[i]);
@@ -790,9 +806,9 @@ void ProblemInstance::binarySearchMinimize(MinisatSolver * solver, vector<int>& 
     for (auto l : mus) solver->unsetBvar(l);
 
     solver->clearAssumptions();
-    solver->assumeBvars();  
+    solver->assumeBvars();
     solver->findCore(subcore);
-    if (subcore.size()) break;  
+    if (subcore.size()) break;
   }
 
   core.swap(mus);
@@ -909,13 +925,13 @@ void ProblemInstance::cardinalityMinimize(MinisatSolver * solver, vector<int>& c
     // block all soft clauses not in lits
     for (auto b_w : bvar_weights) {
       int b = b_w.first;
-      if (find(lits.begin(), lits.end(), b) == lits.end() and 
+      if (find(lits.begin(), lits.end(), b) == lits.end() and
           find(mus.begin(), mus.end(), b) == mus.end()) {
         solver->assumeLit(b);
       }
     }
 
-    // unblock all clauses in (incomplete) mus 
+    // unblock all clauses in (incomplete) mus
     for (auto l : mus)
       solver->assumeLit(-l);
 
@@ -949,7 +965,7 @@ void ProblemInstance::cardinalityMinimize(MinisatSolver * solver, vector<int>& c
       core = mus;
       break;
     } else { // SAT
-      
+
       // Get model from SAT solver
       vector<bool> model;
       solver->getModel(model);
@@ -961,12 +977,12 @@ void ProblemInstance::cardinalityMinimize(MinisatSolver * solver, vector<int>& c
           // add it to mus and remove it from lits
           mus.push_back(lits[i]);
           lits[i] = lits[lits.size() - 1];
-          lits.pop_back();  
+          lits.pop_back();
           break;
         }
-      } 
+      }
 
-      // update ub 
+      // update ub
       weight_t w = getSolutionWeight(solver);
       if (w < UB) {
         printf("c UB improved in minimize %lu -> %lu\n", UB, w);
@@ -1003,7 +1019,7 @@ void ProblemInstance::reRefuteCore(MinisatSolver * solver, vector<int>& core) {
     solver->clearAssumptions();
     solver->assumeBvars();
     solver->findCore(core);
-  
+
   } while (prevSize > core.size());
 
   //int litsRemoved = origSize - core.size();
@@ -1063,11 +1079,11 @@ void ProblemInstance::printSolution(ostream & model_out) {
     model_out << endl;
     model_out << "o " << UB << endl;
     if (UB == LB)
-      model_out << "s OPTIMUM FOUND" << endl;  
+      model_out << "s OPTIMUM FOUND" << endl;
     else
-      model_out << "s UNKNOWN" << endl;  
+      model_out << "s UNKNOWN" << endl;
   } else {
-    model_out << "s UNSATISFIABLE" << endl;  
+    model_out << "s UNSATISFIABLE" << endl;
   }
   model_out.flush();
 }
