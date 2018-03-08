@@ -10,3 +10,4 @@ config.mk
 api-example/c-example
 api-example/cpp-example
 *.o
+options/regenerate
