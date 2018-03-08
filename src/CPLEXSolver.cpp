@@ -27,9 +27,9 @@ ILOMIPINFOCALLBACK1(UBCutoffCallback,
 }
 
 CPLEXSolver::CPLEXSolver() : solver_calls(0), lp_calls(0), has_lp_model(false),
-    solutionExists(false), objFuncAttached(false), nObjVars(0), nVars(0), 
+    solutionExists(false), objFuncAttached(false), nObjVars(0), nVars(0),
     reducedCostForcedVars(0), reducedCostRelaxedVars(0),
-    lookaheadForcedVars(0), lookaheadImplications(0) 
+    lookaheadForcedVars(0), lookaheadImplications(0)
 {
   GlobalConfig & cfg = GlobalConfig::get();
   largestCore = 0;
@@ -40,7 +40,7 @@ CPLEXSolver::CPLEXSolver() : solver_calls(0), lp_calls(0), has_lp_model(false),
   vars    = IloNumVarArray(*env);
   cons = IloRangeArray(*env);
   cplex = IloCplex(model);
-  
+
   if (cfg.use_LP) {
     has_lp_model = true;
     lp_model = IloModel(*env);
@@ -66,7 +66,7 @@ CPLEXSolver::CPLEXSolver() : solver_calls(0), lp_calls(0), has_lp_model(false),
   cplex.setParam(IloCplex::MIPEmphasis, cfg.MIP_emph);
 
   objective = IloMinimize(*env, IloExpr(*env));
-  
+
 }
 
 CPLEXSolver::~CPLEXSolver() {
@@ -113,10 +113,10 @@ void CPLEXSolver::addObjectiveVariable(int bVar, weight_t weight) {
 
 #ifdef FLOAT_WEIGHTS
   objective.setExpr(objective.getExpr() + weight * newObjVar(bVar, weight));
-#else 
+#else
   objective.setExpr(objective.getExpr() + ((int64_t)weight) * newObjVar(bVar, weight));
 #endif
-  
+
 }
 
 // adds variables to the cplex instance and sets the objective function to
@@ -155,7 +155,7 @@ void CPLEXSolver::reset() {
   model.remove(objective);
   objective.end();
   objective = IloMinimize(*env, IloExpr(*env));
-  
+
   model.remove(objVars);
   objVars.endElements();
   objVars.end();
@@ -173,7 +173,7 @@ void CPLEXSolver::reset() {
 
 // disallow a found solution hs by adding a constraints to the MIP instance
 void CPLEXSolver::forbidCurrentSolution() {
-  condTerminate(!solutionExists, 1, 
+  condTerminate(!solutionExists, 1,
     "CPLEXSolver::forbidCurrentSolution - no current hitting set exists\n");
 
   IloExpr sub_expr(*env);  // make sure next solution isn't a subset of this one
@@ -210,7 +210,7 @@ void CPLEXSolver::forbidCurrentSolution() {
 // adds a constraint to the MIP instance, works with clauses containing negative
 // literals
 void CPLEXSolver::addConstraint(std::vector<int>& core, double bound, Comparator comp) {
-  condTerminate(core.empty(), 1, 
+  condTerminate(core.empty(), 1,
     "CPLEXSolver::addConstraint - empty constraint\n");
 
   if (core.size() > largestCore) largestCore = core.size();
@@ -232,14 +232,14 @@ void CPLEXSolver::addConstraint(std::vector<int>& core, double bound, Comparator
     }
   }
   switch (comp) {
-    case GTE: 
+    case GTE:
     {
       IloRange con = (expr >= (bound - negs));
       cons.add(con);
       model.add(con);
       break;
     }
-    case LTE: 
+    case LTE:
     {
       IloRange con = (expr <= (bound - negs));
       cons.add(con);
@@ -320,7 +320,7 @@ bool CPLEXSolver::LPsolveHS(std::vector<int>& hittingSet, weight_t& weight) {
   weight = lp_cplex.getObjValue();
   #else
   weight = lround(lp_cplex.getObjValue());
-  #endif  
+  #endif
 
   IloNumArray vals(*env);
   lp_cplex.getValues(vals, objVars);
@@ -349,7 +349,7 @@ bool CPLEXSolver::getLPConditionalLB(int var, weight_t & out_lb, IloNumArray& ou
   }
 
   IloRange cons;
-      
+
   cons = (var_to_IloVar[var] >= 1);
   lp_model.add(cons);
 
@@ -372,7 +372,7 @@ bool CPLEXSolver::getLPConditionalLB(int var, weight_t & out_lb, IloNumArray& ou
   weight_t weight = lp_cplex.getObjValue();
 #else
   weight_t weight = lround(lp_cplex.getObjValue());
-#endif  
+#endif
 
   lp_model.remove(cons);
 
@@ -383,7 +383,7 @@ bool CPLEXSolver::getLPConditionalLB(int var, weight_t & out_lb, IloNumArray& ou
 // returns positive valued objective function variables in 'solution'
 // and value of objective function in 'weight'
 CPLEXSolver::Status CPLEXSolver::solveForHS(std::vector<int>& hittingSet, weight_t& opt, ProblemInstance *instance) {
-  
+
   static std::unordered_set<int> hitBVars;
 
   if (!objFuncAttached) {
@@ -407,8 +407,14 @@ CPLEXSolver::Status CPLEXSolver::solveForHS(std::vector<int>& hittingSet, weight
     lp_cplex.solve();
     lp_timer.stop();
 
-    auto LB_lp = lp_cplex.getObjValue();
-    if (abs(LB_lp - UB) < EPS) {
+    double LB_lp = lp_cplex.getObjValue();
+
+    if (ceil(LB_lp - EPS) > LB) {
+      log(1, "c LP improved LB\n");
+      instance->updateLB(ceil(LB_lp - EPS));
+    }
+
+    if (ceil(LB_lp - EPS) == UB) {
       opt = UB;
       return CPLEXSolver::Status::Optimal;
     }
@@ -421,63 +427,63 @@ CPLEXSolver::Status CPLEXSolver::solveForHS(std::vector<int>& hittingSet, weight
 
     for (unsigned i = 0; i < nObjVars; ++i) {
       // variable is forced already?
-      if (objVars[i].getUB() == objVars[i].getLB())
+      if (IloAbs(objVars[i].getUB() - objVars[i].getLB()) < EPS)
         continue;
 
       int bVar;
       sscanf(objVars[i].getName(), "%10d", &bVar);
-      weight_t w = var_to_weight[bVar];
 
-      double rc = reducedCosts[i];
+      weight_t w = var_to_weight[bVar];
+      double rc = ceil(reducedCosts[i]);
       weight_t bvar_LB = 0;
 
       // conditional lb cannot exceed ub
-      if (UB - (LB_lp + w) > EPS) continue;
+      if (UB > (weight_t(ceil(LB_lp - EPS)) + w)) continue;
 
       assert(instance->UB_bool_solution.size() > unsigned(bVar));
 
       if (IloAbs(lp_vals[i]) < EPS) { // try to harden
-    
+
         // reduced cost is zero or negative?
         if (rc <= EPS) continue;
 
-        bvar_LB = LB_lp + rc;
+        bvar_LB = weight_t(ceil(LB_lp + rc));
 
         // conditinal lb too low to force
-        if (UB - bvar_LB > EPS) continue;
+        if (UB > bvar_LB) continue;
 
         bool true_in_best_model = instance->UB_bool_solution[bVar];
         // cannot force to 0 since best found model might be optimal
-        if (true_in_best_model && abs(bvar_LB - UB) < EPS) continue;
+        if (true_in_best_model && bvar_LB == UB) continue;
 
         forceVar(instance, bVar, false);
         std::cout << "c forced bVar " << bVar << " lp_lb: " << LB_lp \
           << " ub: " << UB << " bv_lb: " << bvar_LB << std::endl;
         ++reducedCostForcedVars;
       } else {  // try to relax
-  
+
         // reduced cost is zero or negative?
         if (rc >= EPS) continue;
 
-        bvar_LB = LB_lp - rc;
+        bvar_LB = weight_t(ceil(LB_lp - rc - EPS));
 
         // conditinal lb too low to relax
-        if (UB - bvar_LB > EPS) continue;        
+        if (UB > bvar_LB) continue;
 
         bool false_in_best_model = !instance->UB_bool_solution[bVar];
         // cannot force to 1 since best found model might be optimal
-        if (false_in_best_model && abs(bvar_LB - UB) < EPS) continue;
+        if (false_in_best_model && bvar_LB == UB) continue;
 
         forceVar(instance, bVar, true);
         std::cout << "c relaxed bVar " << bVar << " lp_lb: " << LB_lp \
           << " ub: " << UB << " bv_lb: " << bvar_LB << std::endl;
         ++reducedCostRelaxedVars;
       }
-    }    
+    }
   }
 
 
-  // previous result was optimal for fewer constraints, 
+  // previous result was optimal for fewer constraints,
   // so we can cut off search if we get there again
   static IloNum lastOpt = 0;
 
@@ -497,7 +503,7 @@ CPLEXSolver::Status CPLEXSolver::solveForHS(std::vector<int>& hittingSet, weight
 
   if (!cplex.solve()) {
     return CPLEXSolver::Status::Failed;
-  } 
+  }
 
   solver_timer.stop();
 
@@ -545,7 +551,7 @@ CPLEXSolver::Status CPLEXSolver::solveForHS(std::vector<int>& hittingSet, weight
 #else
   opt = lround(cplex.getObjValue());
 #endif
-  
+
   solutionExists = true;
 
   return status;
