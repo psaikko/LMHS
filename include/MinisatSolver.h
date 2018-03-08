@@ -43,7 +43,7 @@ class MinisatSolver {
 
   Minisat::lbool upol;
   Minisat::Solver* minisat;
-  static const int deactivateMask = ~0 << 1;
+  static const int deactivateMask = ~1;
   Minisat::vec<Minisat::Lit> assumptions;
   Minisat::vec<Minisat::Lit> bvar_assumptions;
   std::unordered_map<int, int> var_assumptionIdx;
@@ -101,7 +101,7 @@ class MinisatSolver {
 
   std::vector<int> addTempAtMostOneEncoding(std::vector<int>& core);
 
-  void removeTempAtMostOneEncoding(int b);  
+  void removeTempAtMostOneEncoding(int b);
 
   std::vector<std::vector<int>> & getAcycLearnts();
   void clearAcycLearnts();
