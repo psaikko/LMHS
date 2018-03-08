@@ -8,7 +8,7 @@ LMHS uses MiniSat as its underlying SAT solver and MaxPre as its preprocessor.
 An IP solver must be separately installed to use LMHS. 
 Currently only IBM CPLEX is supported without modification to the source code. 
 A free academic license for CPLEX can be obtained through the IBM Academic Initiative.
-LMHS has been tested with CPLEX 12.5 - 12.7
+LMHS has been tested with CPLEX 12.5 - 12.8
 
 Run the configure.py script before compiling LMHS to set the necessary IP solver filepaths.
 
