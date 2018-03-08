@@ -1,0 +1,5 @@
+cc s OPTIMUM FOUND
+cc o 0
+p wcnf 2 2 1
+1 1 0
+1 1 2 0

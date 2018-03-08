@@ -56,6 +56,7 @@ void terminate(const int code, const char * fmt, ...) {
   va_start(args, fmt);
   vprintf(fmt, args);
   va_end(args);
+  printf("s UNKNOWN\n");
   exit(code);
 }
 
@@ -70,5 +71,6 @@ void condTerminate(const bool cond, const int code, const char * fmt, ...) {
   va_start(args, fmt);
   vprintf(fmt, args);
   va_end(args);
+  printf("s UNKNOWN\n");
   exit(code);
 }

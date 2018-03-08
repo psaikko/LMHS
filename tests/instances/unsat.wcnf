@@ -1,0 +1,4 @@
+cc s OPTIMUM FOUND
+cc o 0
+p wcnf 3 1 10000
+80 3 -3 -2 -1 0

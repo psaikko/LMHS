@@ -23,7 +23,7 @@ MINISAT_BUILD = release
 
 CPP = g++
 LMHS_CPPFLAGS	+=	-std=c++11 -pthread -fPIC -m64 -MMD \
--D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -Iinclude -Ioptions -I$(PREPROCESSDIR)	
+-D __STDC_LIMIT_MACROS -D __STDC_FORMAT_MACROS -Iinclude -Ioptions -I$(PREPROCESSDIR)
 
 
 PREPRO_LN	=	-L$(PREPROCESSDIR)/lib -lpreprocessor
@@ -32,7 +32,7 @@ PREPRO_LN	=	-L$(PREPROCESSDIR)/lib -lpreprocessor
 WARNS	=	-pedantic -Wall -Wextra -W -Wpointer-arith -Wcast-align \
 			-Wwrite-strings -Wdisabled-optimization \
 			-Wctor-dtor-privacy -Wno-reorder -Woverloaded-virtual \
-			-Wsign-promo -Wsynth
+			-Wsign-promo -Wsynth -Wno-ignored-attributes
 
 SATDIR	=	$(MINISATDIR)
 SAT_LNFLAGS	=	-lz
@@ -67,10 +67,13 @@ ifeq ($(STATIC),1)
 	LMHS_CPPFLAGS	+=	-static -static-libgcc -static-libstdc++
 endif
 
-.PHONY: all dirs lib clean Minisat
+.PHONY: all dirs lib clean Minisat test
 all: dirs $(PP) options/regenerate $(EXE) lib
 
-options/%.cpp: 
+test:
+	cd tests && ./run_tests.py ../$(EXE)
+
+options/%.cpp:
 	@rm -f options/regenerate
 
 options/%.h:
@@ -92,7 +95,7 @@ lib: $(PP) $(SATDEP) $(MIPDEP) $(OBJFILES) $(LIB_OBJFILES)
 		$(OBJFILES) $(LIB_OBJFILES)\
 		$(MIP_LNDIRS) $(SAT_LNDIRS) $(MIP_LNFLAGS) $(SAT_LNFLAGS) $(PREPRO_LN) $(SATOBJS) -lstdc++
 
-clean: 
+clean:
 	rm -f options/regenerate
 	rm -rf `find . | grep "\.o$$"`
 	rm -rf `find . | grep "\.d$$"`
@@ -101,7 +104,7 @@ clean:
 minisat:
 	@echo "Compiling minisat:"
 	@$(MAKE) -s -C $(MINISATDIR) config prefix=.
-	@$(MAKE) -s -C $(MINISATDIR) build/$(MINISAT_BUILD)/minisat/core/Solver.o 
+	@$(MAKE) -s -C $(MINISATDIR) build/$(MINISAT_BUILD)/minisat/core/Solver.o
 	@$(MAKE) -s -C $(MINISATDIR) build/$(MINISAT_BUILD)/minisat/utils/System.o
 	@$(MAKE) -s -C $(MINISATDIR) build/$(MINISAT_BUILD)/minisat/utils/Options.o
 	@echo "Minisat objects compiled."
