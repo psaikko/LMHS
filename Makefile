@@ -47,7 +47,7 @@ CONCERTINCDIR	=	$(CONCERTDIR)/include
 CPLEXINCDIR	=	$(CPLEXDIR)/include
 CCOPT	=	-fno-strict-aliasing -fexceptions -DIL_STD
 MIP_LNDIRS	=	-L$(CPLEXLIBDIR) -L$(CONCERTLIBDIR)
-MIP_LNFLAGS	=	-lconcert -lilocplex -lcplex -lm -lpthread
+MIP_LNFLAGS	=	-lconcert -lilocplex -lcplex -lm -lpthread -ldl
 LMHS_CPPFLAGS	+=	$(CCOPT) -I$(CPLEXINCDIR) -I$(CONCERTINCDIR) -DMIP_CPLEX
 
 FLOAT_WEIGHTS	?=	0
@@ -62,7 +62,7 @@ PP ?= $(PREPROCESSDIR)/lib/libpreprocess.a
 EXE	?=	bin/LMHS-$(WGHT)
 LIBNAME	=	libLMHS-$(WGHT)
 
-STATIC	?=	1
+STATIC	?=	0
 ifeq ($(STATIC),1)
 	LMHS_CPPFLAGS	+=	-static -static-libgcc -static-libstdc++
 endif
