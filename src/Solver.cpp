@@ -106,11 +106,11 @@ bool Solver::hardClausesSatisfiable() {
   instance.sat_solver->setBvars();
   instance.sat_solver->clearAssumptions();
   instance.sat_solver->assumeBvars();
+
   if (!instance.sat_solver->solve()) {
     log(1, "c hard clauses unsatisfiable\n");
     return false;
   } else {
-
     log(1, "c hard clauses satisfiable\n");
     instance.updateUB(instance.getSolutionWeight(instance.sat_solver));
     return true;

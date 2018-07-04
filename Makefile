@@ -32,7 +32,7 @@ PREPRO_LN	=	-L$(PREPROCESSDIR)/lib -lpreprocessor
 WARNS	=	-pedantic -Wall -Wextra -W -Wpointer-arith -Wcast-align \
 			-Wwrite-strings -Wdisabled-optimization \
 			-Wctor-dtor-privacy -Wno-reorder -Woverloaded-virtual \
-			-Wsign-promo -Wsynth -Wno-ignored-attributes
+			-Wsign-promo -Wsynth -Wno-ignored-attributes -Wno-unused-parameter
 
 SATDIR	=	$(MINISATDIR)
 SAT_LNFLAGS	=	-lz

@@ -308,8 +308,9 @@ void ProblemInstance::forbidCurrentMIPSol() {
 void ProblemInstance::forbidCurrentModel() {
   condTerminate(sat_solver == nullptr, 1,
                 "Error: no SAT solver attached to ProblemInstance\n");
-  vector<int> solution;
-  getSolution(solution);
+
+  assert(UB_solution.size());
+  vector<int> solution = UB_solution;
 
   condTerminate(solution.size() == 0, 1,
                 "Error: no model given by SAT solver\n");
@@ -323,12 +324,19 @@ void ProblemInstance::forbidCurrentModel() {
 // add a hard clause to the SAT instance
 void ProblemInstance::addHardClause(vector<int>& hc, bool original) {
 
+  UB_solution.clear();
+  UB_bool_solution.clear();
+  UB = numeric_limits<weight_t>::max();
+
   for (int l : hc) {
     assert(bvar_weights.count(abs(l)) == 0);
 
     max_var = max(abs(l), max_var);
     if (sat_solver != nullptr && max_var >= sat_solver->nVars())
       sat_solver->addVariable(max_var);
+
+    if (muser != nullptr && max_var >= muser->nVars())
+      muser->addVariable(max_var);
   }
 
   auto clause = new vector<int>(hc);
@@ -356,6 +364,9 @@ void ProblemInstance::addHardClause(vector<int>& hc, bool original) {
 int ProblemInstance::addSoftClause(vector<int>& sc, weight_t weight,
                                    bool original)
 {
+  UB_solution.clear();
+  UB_bool_solution.clear();
+  UB = numeric_limits<weight_t>::max();
 
   if (weight < EPS) {
     printf("c warning: ignoring 0-weight clause\n");
@@ -368,6 +379,9 @@ int ProblemInstance::addSoftClause(vector<int>& sc, weight_t weight,
     max_var = max(abs(l), max_var);
     if (sat_solver != nullptr)
       while (max_var >= sat_solver->nVars()) sat_solver->addVariable(max_var);
+
+    if (muser != nullptr)
+      while (max_var >= muser->nVars()) muser->addVariable(max_var);
   }
 
   auto clause = new vector<int>(sc);
@@ -412,6 +426,9 @@ void ProblemInstance::addBvar(int bVar, weight_t weight) {
 // add a soft clause to the SAT instance with existing bvar(s)
 void ProblemInstance::addSoftClauseWithBv(vector<int>& sc_, bool original)
 {
+  UB_solution.clear();
+  UB_bool_solution.clear();
+  UB = numeric_limits<weight_t>::max();
 
   for (unsigned i = 0; i < sc_.size(); i++) {
     int v = abs(sc_[i]);
